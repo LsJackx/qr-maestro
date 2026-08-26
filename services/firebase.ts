@@ -102,7 +102,7 @@ const cleanData = (data: any) => {
 };
 
 export const saveQRToFirebase = async (config: QRCodeConfig) => {
-  const docId = config.shortId || config.isDynamic ? config.shortId : crypto.randomUUID();
+  const docId = config.shortId || (config.isDynamic ? config.shortId : crypto.randomUUID());
   if (!docId) throw new Error("Error interno: No ID generation possible");
   
   const dataToSave = cleanData({
@@ -112,10 +112,10 @@ export const saveQRToFirebase = async (config: QRCodeConfig) => {
   });
 
   try {
-    await setDoc(doc(db, COLLECTION_NAME, docId), dataToSave);
+    await setDoc(doc(db, COLLECTION_NAME, docId), dataToSave, { merge: true });
     return true;
   } catch (error) {
-    console.error("Error saving QR:", error);
+    console.error("Error saving QR to Firebase:", error);
     throw error;
   }
 };

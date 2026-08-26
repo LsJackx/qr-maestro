@@ -103,7 +103,7 @@ export default function App() {
     return hasParams ? 'LOADING' : 'LANDING';
   });
   
-  const [viewerData, setViewerData] = useState<string | QRCodeConfig | null>(null); 
+  const [viewerData, setViewerData] = useState<string | QRCodeConfig | any>(null); 
   
   // Auth & Plans State
   const [user, setUser] = useState<User | null>(null);
@@ -191,12 +191,35 @@ export default function App() {
         if (data) {
           setViewerData(data);
           setView('VIEWER');
+        } else if (legacyData) {
+          // If firestore document not found yet or offline, use encoded payload fallback
+          setViewerData({ legacyData, shortId: firebaseId });
+          setView('VIEWER');
         } else {
-          alert('Este código QR no existe o ha sido eliminado.');
+          // Check localStorage as fallback
+          const localHistoryStr = localStorage.getItem('qr-history');
+          if (localHistoryStr) {
+            try {
+              const localList = JSON.parse(localHistoryStr);
+              const found = localList.find((i: any) => i.shortId === firebaseId || i.id === firebaseId);
+              if (found) {
+                setViewerData(found);
+                setView('VIEWER');
+                return;
+              }
+            } catch (e) {}
+          }
+          alert('Este código QR no existe o no tiene contenido configurado.');
           setView('LANDING');
         }
-      }).catch(() => {
-          setView('LANDING');
+      }).catch((err) => {
+          console.error("Error fetching dynamic QR:", err);
+          if (legacyData) {
+            setViewerData({ legacyData, shortId: firebaseId });
+            setView('VIEWER');
+          } else {
+            setView('LANDING');
+          }
       });
     } else if (legacyData) {
       setViewerData(legacyData);
@@ -267,11 +290,35 @@ export default function App() {
 
     let qrPayload = realContent;
     if (config.isDynamic) {
-      qrPayload = `${window.location.origin}?id=${shortId}`;
+      try {
+        const compact = {
+          t: dynTitle || 'Bienvenido',
+          d: dynDesc || '',
+          b: dynBtn || 'Continuar',
+          u: realContent,
+          ct: config.contentType,
+          ss: wifiSsid,
+          sp: wifiPass,
+          tc: landingThemeColor,
+          bg: landingBgColor,
+          en: landingExtraNotes,
+          wa: landingWhatsapp,
+          ig: landingInstagram,
+          ph: landingPhone,
+          ws: landingWebsite
+        };
+        const jsonStr = JSON.stringify(compact);
+        const encoded = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+          return String.fromCharCode(parseInt(p1, 16));
+        }));
+        qrPayload = `${window.location.origin}${window.location.pathname}?id=${shortId}&d=${encoded}`;
+      } catch (e) {
+        qrPayload = `${window.location.origin}${window.location.pathname}?id=${shortId}`;
+      }
     }
 
-    setConfig(prev => ({ 
-      ...prev, 
+    const updatedConfig: QRCodeConfig = { 
+      ...config, 
       value: qrPayload,        
       targetContent: realContent, 
       shortId: shortId,
@@ -290,7 +337,17 @@ export default function App() {
       scanLimit: scanLimit ? parseInt(scanLimit) : undefined,
       password: password,
       passwordProtected: !!password
-    }));
+    };
+
+    setConfig(updatedConfig);
+
+    // Auto-save dynamic QR to Firebase in background (debounced)
+    if (config.isDynamic && shortId) {
+      const timer = setTimeout(() => {
+        saveQRToFirebase(updatedConfig).catch(err => console.warn("Background auto-save failed:", err));
+      }, 800);
+      return () => clearTimeout(timer);
+    }
     
   }, [urlInput, wifiSsid, wifiPass, videoUrl, geoLat, geoLon, vcardName, vcardPhone, vcardEmail, config.contentType, config.isDynamic, dynTitle, dynDesc, dynBtn, landingLogoUrl, landingThemeColor, landingBgColor, landingExtraNotes, landingWhatsapp, landingInstagram, landingPhone, landingWebsite, expiry, scanLimit, password, shortId]);
 
@@ -390,6 +447,25 @@ export default function App() {
   };
 
   const handleDownload = (format: 'PNG' | 'SVG') => {
+    // If dynamic, ensure it's saved in Firebase immediately
+    if (config.isDynamic) {
+      saveQRToFirebase(config).catch(e => console.warn("Failed immediate sync on download:", e));
+      
+      const newHistoryItem: HistoryItem = {
+        ...config,
+        id: config.shortId || shortId, 
+        createdAt: Date.now(),
+        title: `[Smart] ${dynTitle || 'QR Dinámico'}`,
+        wifiSsid, wifiPass, locationLat: geoLat, locationLon: geoLon, vcardName, vcardPhone, vcardEmail
+      };
+      setHistory(prev => {
+        const filtered = prev.filter(h => h.shortId !== newHistoryItem.shortId);
+        const updated = [newHistoryItem, ...filtered];
+        localStorage.setItem('qr-history', JSON.stringify(updated));
+        return updated;
+      });
+    }
+
     if (svgRef.current) {
       if (format === 'PNG') {
         downloadPNG(svgRef.current, `qrmaestro-${Date.now()}`, 2048);

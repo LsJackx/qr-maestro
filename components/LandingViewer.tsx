@@ -5,9 +5,24 @@ import { QRCodeConfig } from '../types';
 import { recordScan } from '../services/firebase';
 
 interface LandingViewerProps {
-  // Can be a base64 string (legacy) or a full QRCodeConfig object (firebase)
-  data: string | QRCodeConfig; 
+  // Can be a base64 string, an object with fallback payload, or a full QRCodeConfig object
+  data: string | QRCodeConfig | any; 
 }
+
+const safeBase64Decode = (str: string) => {
+  try {
+    const binary = atob(str);
+    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+    const decoded = new TextDecoder().decode(bytes);
+    return JSON.parse(decoded);
+  } catch (e) {
+    try {
+      return JSON.parse(decodeURIComponent(escape(atob(str))));
+    } catch {
+      return JSON.parse(atob(str));
+    }
+  }
+};
 
 export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
   const [parsedConfig, setParsedConfig] = useState<any | null>(null);
@@ -21,42 +36,70 @@ export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
         let configToUse: any = null;
 
         if (typeof data === 'string') {
-          // Legacy Base64 handling
+          // Encoded Base64 handling
           try {
-            const json = atob(data);
-            const parsed = JSON.parse(json);
+            const parsed = safeBase64Decode(data);
             configToUse = {
-              dynamicTitle: parsed.t,
-              dynamicDescription: parsed.d,
-              dynamicButtonText: parsed.b,
-              targetContent: parsed.u,
+              dynamicTitle: parsed.t || 'Bienvenido',
+              dynamicDescription: parsed.d || '',
+              dynamicButtonText: parsed.b || 'Acceder',
+              targetContent: parsed.u || '',
               contentType: parsed.ct || 'URL',
               wifiSsid: parsed.ss,
               wifiPass: parsed.sp,
-              landingThemeColor: parsed.tc,
-              landingExtraNotes: parsed.en
+              landingThemeColor: parsed.tc || '#4f46e5',
+              landingBgColor: parsed.bg || '#f8fafc',
+              landingExtraNotes: parsed.en || '',
+              landingWhatsapp: parsed.wa,
+              landingInstagram: parsed.ig,
+              landingPhone: parsed.ph,
+              landingWebsite: parsed.ws
             };
           } catch (e) {
-            console.error("Error parsing legacy data:", e);
+            console.error("Error parsing base64 data:", e);
           }
-        } else {
-          // It's a full Firestore Config Object
-          configToUse = data;
+        } else if (data && typeof data === 'object') {
+          if (data.legacyData) {
+            try {
+              const parsed = safeBase64Decode(data.legacyData);
+              configToUse = {
+                shortId: data.shortId,
+                dynamicTitle: parsed.t || 'Bienvenido',
+                dynamicDescription: parsed.d || '',
+                dynamicButtonText: parsed.b || 'Acceder',
+                targetContent: parsed.u || '',
+                contentType: parsed.ct || 'URL',
+                wifiSsid: parsed.ss,
+                wifiPass: parsed.sp,
+                landingThemeColor: parsed.tc || '#4f46e5',
+                landingBgColor: parsed.bg || '#f8fafc',
+                landingExtraNotes: parsed.en || '',
+                landingWhatsapp: parsed.wa,
+                landingInstagram: parsed.ig,
+                landingPhone: parsed.ph,
+                landingWebsite: parsed.ws
+              };
+            } catch (e) {
+              console.error("Error parsing legacy data fallback:", e);
+            }
+          } else {
+            // It's a full Firestore Config Object
+            configToUse = data;
+          }
         }
 
         if (configToUse) {
           setParsedConfig(configToUse);
           
           // FORCE RECORD SCAN if we have an ID
-          if (configToUse.shortId && !scanRecorded.current) {
+          const qrId = configToUse.shortId || (typeof data === 'object' ? data.shortId : undefined);
+          if (qrId && !scanRecorded.current) {
              scanRecorded.current = true;
-             console.log("[Analytics] Recording scan for:", configToUse.shortId);
+             console.log("[Analytics] Recording scan for:", qrId);
              
-             recordScan(configToUse.shortId)
+             recordScan(qrId)
                 .then(() => console.log("[Analytics] Scan recorded successfully"))
                 .catch(err => console.error("[Analytics] Scan error:", err));
-          } else {
-             if (!configToUse.shortId) console.warn("[Analytics] No ID found, skipping record.");
           }
         } else {
           setError('No se pudieron cargar los datos del QR.');
