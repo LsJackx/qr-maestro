@@ -352,9 +352,9 @@ export default function App() {
   const handleDownload = (format: 'PNG' | 'SVG') => {
     if (svgRef.current) {
       if (format === 'PNG') {
-        downloadPNG(svgRef.current, `neoqr-${Date.now()}`, 2048);
+        downloadPNG(svgRef.current, `qrmaestro-${Date.now()}`, 2048);
       } else {
-         downloadSVG(svgRef.current, `neoqr-${Date.now()}`);
+         downloadSVG(svgRef.current, `qrmaestro-${Date.now()}`);
       }
     }
   };
@@ -410,7 +410,7 @@ export default function App() {
                 <QrCode className="w-6 h-6 text-white" />
               </div>
               <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-                NeoQR
+                QRMaestro
               </span>
             </div>
             
@@ -484,7 +484,7 @@ export default function App() {
               <div className="bg-indigo-600 p-1.5 rounded-md">
                 <QrCode className="w-5 h-5 text-white" />
               </div>
-              <span className="font-bold text-lg hidden sm:block">NeoQR</span>
+              <span className="font-bold text-lg hidden sm:block">QRMaestro</span>
             </div>
           </div>
 
