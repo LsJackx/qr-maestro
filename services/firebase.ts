@@ -26,20 +26,22 @@ import {
 import { QRCodeConfig, HistoryItem, ScanEvent } from "../types";
 import configJson from "../firebase-applet-config.json";
 
-// Use provisioned Firebase configuration
+// Use environment variables if present (for Vercel / production), or fallback to firebase-applet-config.json
 const firebaseConfig = {
-  apiKey: configJson.apiKey,
-  authDomain: configJson.authDomain,
-  projectId: configJson.projectId,
-  storageBucket: configJson.storageBucket,
-  messagingSenderId: configJson.messagingSenderId,
-  appId: configJson.appId
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || configJson.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || configJson.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || configJson.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || configJson.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || configJson.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || configJson.appId
 };
+
+const firestoreDatabaseId = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || configJson.firestoreDatabaseId;
 
 // Initialize Firebase App and Firestore Database instance
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const db = (configJson.firestoreDatabaseId && configJson.firestoreDatabaseId !== "(default)")
-  ? getFirestore(app, configJson.firestoreDatabaseId)
+export const db = (firestoreDatabaseId && firestoreDatabaseId !== "(default)")
+  ? getFirestore(app, firestoreDatabaseId)
   : getFirestore(app);
 export const auth = getAuth(app);
 
