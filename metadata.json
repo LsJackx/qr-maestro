@@ -1,0 +1,8 @@
+{
+  "name": "NeoQR Studio",
+  "description": "Un generador de códigos QR profesional y moderno impulsado por IA. Crea, personaliza, guarda y exporta tus códigos en múltiples formatos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

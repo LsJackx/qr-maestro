@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- SEO PRIMARY -->
+    <title>NeoQR Studio - Generador de Códigos QR con IA Gratis y Profesional</title>
+    <meta name="description" content="Crea códigos QR personalizados, modernos y artísticos con Inteligencia Artificial. Generador de QR gratuito para WiFi, URL, VCard y más. Descarga en SVG y PNG de alta calidad." />
+    <meta name="keywords" content="generador qr, qr con ia, qr code creator, qr wifi, vcard qr, qr personalizado, qr gratis, neoqr studio" />
+    <meta name="author" content="NeoQR Studio" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- OPEN GRAPH / FACEBOOK -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://neoqr-studio.vercel.app/" />
+    <meta property="og:title" content="NeoQR Studio - Generador de QR con IA" />
+    <meta property="og:description" content="Diseña códigos QR únicos impulsados por IA. Personaliza colores, marcos y estilos. Totalmente gratis y sin registros obligatorios." />
+    <meta property="og:image" content="https://neoqr-studio.vercel.app/og-image.jpg" />
+
+    <!-- TWITTER -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://neoqr-studio.vercel.app/" />
+    <meta property="twitter:title" content="NeoQR Studio - Generador de QR con IA" />
+    <meta property="twitter:description" content="Diseña códigos QR únicos impulsados por IA. Personaliza colores, marcos y estilos." />
+    <meta property="twitter:image" content="https://neoqr-studio.vercel.app/og-image.jpg" />
+
+    <!-- STYLES -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+      body { font-family: 'Inter', sans-serif; }
+      /* Hide scrollbar for Chrome, Safari and Opera */
+      .no-scrollbar::-webkit-scrollbar {
+          display: none;
+      }
+      /* Hide scrollbar for IE, Edge and Firefox */
+      .no-scrollbar {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+      }
+    </style>
+
+    <!-- GOOGLE ADSENSE PLACEHOLDER (Uncomment and add ID when ready) -->
+    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script> -->
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "qrcode.react": "https://aistudiocdn.com/qrcode.react@^4.2.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+  }
+}
+</script>
+</head>
+  <body class="bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-300">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

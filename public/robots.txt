@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://neoqr-studio.vercel.app/sitemap.xml

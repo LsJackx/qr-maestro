@@ -1,0 +1,161 @@
+import { QRFrame } from '../types';
+
+export const FRAMES: QRFrame[] = [
+  {
+    id: 'none',
+    name: 'Clásico',
+    description: 'Sin marco exterior',
+    viewBox: '0 0 100 100',
+    qrSize: 96,
+    qrX: 2,
+    qrY: 2,
+    hasText: false,
+    textPosition: 'none',
+    badgeStyle: 'none'
+  },
+  {
+    id: 'bottom-banner',
+    name: 'Banner Abajo',
+    description: 'Marco con banner inferior y flecha indicadora',
+    viewBox: '0 0 100 128',
+    qrSize: 84,
+    qrX: 8,
+    qrY: 8,
+    hasText: true,
+    defaultText: 'ESCANÉAME',
+    textPosition: 'bottom',
+    badgeStyle: 'banner',
+    borderRadius: 8
+  },
+  {
+    id: 'bottom-pill',
+    name: 'Cápsula',
+    description: 'Marco redondeado con píldora flotante',
+    viewBox: '0 0 100 126',
+    qrSize: 80,
+    qrX: 10,
+    qrY: 8,
+    hasText: true,
+    defaultText: 'SCAN ME',
+    textPosition: 'bottom',
+    badgeStyle: 'pill',
+    borderRadius: 14
+  },
+  {
+    id: 'top-banner',
+    name: 'Banner Arriba',
+    description: 'Encabezado superior destacado',
+    viewBox: '0 0 100 126',
+    qrSize: 82,
+    qrX: 9,
+    qrY: 34,
+    hasText: true,
+    defaultText: 'ESCANÉAME',
+    textPosition: 'top',
+    badgeStyle: 'banner',
+    borderRadius: 8
+  },
+  {
+    id: 'chat-bubble',
+    name: 'Mensaje',
+    description: 'Burbuja de chat interactiva',
+    viewBox: '0 0 100 128',
+    qrSize: 78,
+    qrX: 11,
+    qrY: 8,
+    hasText: true,
+    defaultText: '¡ÁBREME!',
+    textPosition: 'bottom',
+    badgeStyle: 'bubble',
+    borderRadius: 16
+  },
+  {
+    id: 'smartphone',
+    name: 'Teléfono',
+    description: 'Silueta de smartphone moderno',
+    viewBox: '0 0 100 134',
+    qrSize: 76,
+    qrX: 12,
+    qrY: 18,
+    hasText: true,
+    defaultText: 'ABRIR EN MÓVIL',
+    textPosition: 'bottom',
+    badgeStyle: 'phone',
+    borderRadius: 18
+  },
+  {
+    id: 'clipboard',
+    name: 'Tarjeta',
+    description: 'Hoja de notas con clip superior',
+    viewBox: '0 0 100 128',
+    qrSize: 78,
+    qrX: 11,
+    qrY: 18,
+    hasText: true,
+    defaultText: 'INFO & MENÚ',
+    textPosition: 'bottom',
+    badgeStyle: 'clipboard',
+    borderRadius: 8
+  },
+  {
+    id: 'polaroid',
+    name: 'Polaroid',
+    description: 'Marco fotográfico instantáneo',
+    viewBox: '0 0 100 126',
+    qrSize: 80,
+    qrX: 10,
+    qrY: 10,
+    hasText: true,
+    defaultText: 'FOTOS & RECUERDOS',
+    textPosition: 'bottom',
+    badgeStyle: 'polaroid',
+    borderRadius: 4
+  },
+  {
+    id: 'circle-badge',
+    name: 'Circular',
+    description: 'Marco circular con badge inferior',
+    viewBox: '0 0 100 120',
+    qrSize: 74,
+    qrX: 13,
+    qrY: 8,
+    hasText: true,
+    defaultText: 'SCAN ME',
+    textPosition: 'bottom',
+    badgeStyle: 'circle',
+    borderRadius: 50
+  },
+  {
+    id: 'tech-brackets',
+    name: 'Tech HUD',
+    description: 'Esquinas cibernéticas modernas',
+    viewBox: '0 0 100 100',
+    qrSize: 78,
+    qrX: 11,
+    qrY: 11,
+    hasText: false,
+    textPosition: 'none',
+    badgeStyle: 'brackets'
+  },
+  {
+    id: 'simple-border',
+    name: 'Borde Fino',
+    description: 'Borde perimetral minimalista',
+    viewBox: '0 0 100 100',
+    qrSize: 84,
+    qrX: 8,
+    qrY: 8,
+    hasText: false,
+    textPosition: 'none',
+    badgeStyle: 'none',
+    borderRadius: 12
+  }
+];
+
+export const FONT_FAMILIES = {
+  sans: 'Inter, system-ui, -apple-system, sans-serif',
+  serif: 'Georgia, Cambria, "Times New Roman", serif',
+  mono: '"Courier New", Courier, monospace',
+  display: '"Impact", "Arial Black", sans-serif',
+  handwriting: '"Brush Script MT", "Caveat", cursive, sans-serif'
+};
