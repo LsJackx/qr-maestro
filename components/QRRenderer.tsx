@@ -479,6 +479,33 @@ function renderFrameShape(
   }
 }
 
+// TEXT WRAPPER UTILITY FOR SVG
+function wrapText(text: string, maxChars: number): string[] {
+  if (!text) return [];
+  // Also split by explicit newlines if user added any
+  const paragraphs = text.split('\n');
+  const result: string[] = [];
+
+  paragraphs.forEach(p => {
+    const words = p.split(/\s+/);
+    let currentLine = '';
+
+    for (const word of words) {
+      if (!word) continue;
+      if ((currentLine + (currentLine ? ' ' : '') + word).length <= maxChars) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) result.push(currentLine);
+        // If single word is longer than maxChars, keep it whole
+        currentLine = word;
+      }
+    }
+    if (currentLine) result.push(currentLine);
+  });
+
+  return result.length > 0 ? result : [text];
+}
+
 // FULL CARD / FLYER / INSTRUCTIONS RENDERER
 interface CardQRRendererProps {
   config: QRCodeConfig;
@@ -511,41 +538,51 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
   const cardCta = config.cardCta || 'Acceso rápido y seguro';
   const position = config.cardPosition || 'bottom';
 
+  // 1. FLYER / POSTER FORMAT (360 x 520)
   if (position === 'flyer') {
-    // Elegant Poster / Flyer Format (300 x 440)
+    const titleLines = wrapText(cardTitle, 26);
+    const subtitleLines = wrapText(cardSubtitle, 38);
+    const instructionLines = wrapText(cardInstructions, 36);
+
     return (
       <svg
         ref={svgRef}
         xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 320 450"
+        viewBox="0 0 360 520"
         className={className}
         style={{ overflow: 'visible' }}
       >
-        {/* Card Background with Soft Border */}
-        <rect x="0" y="0" width="320" height="450" rx="24" fill={cardBg} />
-        <rect x="4" y="4" width="312" height="442" rx="20" fill="none" stroke={frameColor} strokeWidth="3" opacity="0.8" />
+        {/* Card Background */}
+        <rect x="0" y="0" width="360" height="520" rx="24" fill={cardBg} />
+        <rect x="4" y="4" width="352" height="512" rx="20" fill="none" stroke={frameColor} strokeWidth="3" opacity="0.8" />
 
         {/* Decorative Header Bar */}
-        <path d="M 4 24 A 20 20 0 0 1 24 4 L 296 4 A 20 20 0 0 1 316 24 L 316 64 L 4 64 Z" fill={frameColor} />
+        <path d="M 4 24 A 20 20 0 0 1 24 4 L 336 4 A 20 20 0 0 1 356 24 L 356 68 L 4 68 Z" fill={frameColor} />
         
         {/* Badge in Header */}
-        <rect x="90" y="52" width="140" height="24" rx="12" fill={cardBg} stroke={frameColor} strokeWidth="2" />
-        <text x="160" y="68" fill={frameColor} fontSize="10" fontWeight="900" letterSpacing="1" fontFamily={frameFontFamily} textAnchor="middle">
+        <rect x="100" y="54" width="160" height="28" rx="14" fill={cardBg} stroke={frameColor} strokeWidth="2.5" />
+        <text x="180" y="72" fill={frameColor} fontSize="11" fontWeight="900" letterSpacing="1" fontFamily={frameFontFamily} textAnchor="middle">
           {frameText.toUpperCase()}
         </text>
 
-        {/* Title & Subtitle */}
-        <text x="160" y="102" fill={cardText} fontSize="17" fontWeight="bold" fontFamily={frameFontFamily} textAnchor="middle">
-          {cardTitle}
-        </text>
-        <text x="160" y="122" fill={cardText} fontSize="9.5" opacity="0.8" fontFamily={frameFontFamily} textAnchor="middle">
-          {cardSubtitle}
+        {/* Title */}
+        <text x="180" y="112" fill={cardText} fontSize="17" fontWeight="bold" fontFamily={frameFontFamily} textAnchor="middle">
+          {titleLines.map((line, idx) => (
+            <tspan key={idx} x="180" dy={idx === 0 ? 0 : 20}>{line}</tspan>
+          ))}
         </text>
 
-        {/* Center QR Box with frame styling */}
-        <g transform="translate(65, 140)">
-          <rect x="-8" y="-8" width="206" height="206" rx="16" fill="#ffffff" stroke={frameColor} strokeWidth="2.5" />
-          <svg width="190" height="190" viewBox="0 0 1024 1024">
+        {/* Subtitle */}
+        <text x="180" y={112 + (titleLines.length * 20) + 4} fill={cardText} fontSize="10" opacity="0.8" fontFamily={frameFontFamily} textAnchor="middle">
+          {subtitleLines.map((line, idx) => (
+            <tspan key={idx} x="180" dy={idx === 0 ? 0 : 13}>{line}</tspan>
+          ))}
+        </text>
+
+        {/* Center QR Box */}
+        <g transform="translate(80, 185)">
+          <rect x="-8" y="-8" width="216" height="216" rx="16" fill="#ffffff" stroke={frameColor} strokeWidth="2.5" />
+          <svg width="200" height="200" viewBox="0 0 1024 1024">
             <QRCodeSVG
               value={config.value || 'https://neoqr-studio.vercel.app'}
               size={1024}
@@ -560,46 +597,55 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
                 excavate: true,
               } : undefined}
             />
+            {config.logoUrl && config.logoBackground && (
+              <circle cx="512" cy="512" r={(computedLogoSize / 2) + 12} fill="#ffffff" opacity="0.95" />
+            )}
           </svg>
         </g>
 
-        {/* Steps Box */}
-        <g transform="translate(20, 362)">
-          <rect x="0" y="0" width="280" height="38" rx="10" fill={frameColor} fillOpacity="0.08" stroke={frameColor} strokeWidth="1" strokeDasharray="3,3" />
-          <text x="140" y="23" fill={cardText} fontSize="9" fontWeight="600" fontFamily={frameFontFamily} textAnchor="middle">
-            {cardInstructions}
+        {/* Steps / Instructions Box */}
+        <g transform="translate(25, 420)">
+          <rect x="0" y="0" width="310" height={instructionLines.length > 1 ? 46 : 38} rx="10" fill={frameColor} fillOpacity="0.08" stroke={frameColor} strokeWidth="1" strokeDasharray="3,3" />
+          <text x="155" y={instructionLines.length > 1 ? 18 : 23} fill={cardText} fontSize="9.5" fontWeight="600" fontFamily={frameFontFamily} textAnchor="middle">
+            {instructionLines.map((line, idx) => (
+              <tspan key={idx} x="155" dy={idx === 0 ? 0 : 14}>{line}</tspan>
+            ))}
           </text>
         </g>
 
         {/* Footer CTA */}
-        <text x="160" y="424" fill={cardText} fontSize="8.5" opacity="0.6" fontWeight="bold" letterSpacing="0.5" fontFamily={frameFontFamily} textAnchor="middle">
+        <text x="180" y="494" fill={cardText} fontSize="9" opacity="0.7" fontWeight="bold" letterSpacing="0.5" fontFamily={frameFontFamily} textAnchor="middle">
           ★ {cardCta} ★
         </text>
       </svg>
     );
   }
 
+  // 2. HORIZONTAL CARD (520 x 260) - Left or Right
   if (position === 'right' || position === 'left') {
-    // Horizontal / Landscape Card (420 x 220)
     const isRight = position === 'right';
-    const qrTranslateX = isRight ? 20 : 210;
-    const textTranslateX = isRight ? 215 : 25;
+    const qrTranslateX = isRight ? 24 : 290;
+    const textTranslateX = isRight ? 260 : 24;
+
+    const titleLines = wrapText(cardTitle, 22);
+    const subtitleLines = wrapText(cardSubtitle, 32);
+    const instructionLines = wrapText(cardInstructions, 30);
 
     return (
       <svg
         ref={svgRef}
         xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 420 220"
+        viewBox="0 0 530 260"
         className={className}
         style={{ overflow: 'visible' }}
       >
-        <rect x="0" y="0" width="420" height="220" rx="20" fill={cardBg} />
-        <rect x="4" y="4" width="412" height="212" rx="16" fill="none" stroke={frameColor} strokeWidth="3" />
+        <rect x="0" y="0" width="530" height="260" rx="20" fill={cardBg} />
+        <rect x="4" y="4" width="522" height="252" rx="16" fill="none" stroke={frameColor} strokeWidth="3" />
 
         {/* QR Section */}
-        <g transform={`translate(${qrTranslateX}, 20)`}>
-          <rect x="0" y="0" width="180" height="180" rx="12" fill="#ffffff" stroke={frameColor} strokeWidth="2" />
-          <svg x="5" y="5" width="170" height="170" viewBox="0 0 1024 1024">
+        <g transform={`translate(${qrTranslateX}, 25)`}>
+          <rect x="0" y="0" width="210" height="210" rx="14" fill="#ffffff" stroke={frameColor} strokeWidth="2.5" />
+          <svg x="8" y="8" width="194" height="194" viewBox="0 0 1024 1024">
             <QRCodeSVG
               value={config.value || 'https://neoqr-studio.vercel.app'}
               size={1024}
@@ -614,80 +660,85 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
                 excavate: true,
               } : undefined}
             />
+            {config.logoUrl && config.logoBackground && (
+              <circle cx="512" cy="512" r={(computedLogoSize / 2) + 12} fill="#ffffff" opacity="0.95" />
+            )}
           </svg>
         </g>
 
         {/* Text Section */}
-        <g transform={`translate(${textTranslateX}, 35)`}>
+        <g transform={`translate(${textTranslateX}, 24)`}>
           {/* Badge */}
-          <rect x="0" y="0" width="100" height="22" rx="11" fill={frameColor} />
-          <text x="50" y="14" fill={frameTextColor} fontSize="8.5" fontWeight="bold" fontFamily={frameFontFamily} textAnchor="middle">
+          <rect x="0" y="0" width="110" height="24" rx="12" fill={frameColor} />
+          <text x="55" y="16" fill={frameTextColor} fontSize="9.5" fontWeight="bold" fontFamily={frameFontFamily} textAnchor="middle">
             {frameText}
           </text>
 
-          {/* Title */}
-          <text x="0" y="50" fill={cardText} fontSize="16" fontWeight="bold" fontFamily={frameFontFamily}>
-            {cardTitle}
+          {/* Title with wrapping */}
+          <text x="0" y="48" fill={cardText} fontSize="16" fontWeight="bold" fontFamily={frameFontFamily}>
+            {titleLines.map((line, idx) => (
+              <tspan key={idx} x="0" dy={idx === 0 ? 0 : 20}>{line}</tspan>
+            ))}
           </text>
 
-          {/* Subtitle */}
-          <text x="0" y="74" fill={cardText} fontSize="10" opacity="0.8" fontFamily={frameFontFamily}>
-            {cardSubtitle}
+          {/* Subtitle with wrapping */}
+          <text x="0" y={48 + (titleLines.length * 20) + 4} fill={cardText} fontSize="10" opacity="0.8" fontFamily={frameFontFamily}>
+            {subtitleLines.map((line, idx) => (
+              <tspan key={idx} x="0" dy={idx === 0 ? 0 : 13}>{line}</tspan>
+            ))}
           </text>
 
-          {/* Instructions Box */}
-          <rect x="0" y="96" width="180" height="42" rx="8" fill={frameColor} fillOpacity="0.08" stroke={frameColor} strokeWidth="1" />
-          <text x="10" y="115" fill={cardText} fontSize="8.5" fontWeight="600" fontFamily={frameFontFamily}>
-            {cardInstructions}
-          </text>
-          <text x="10" y="128" fill={cardText} fontSize="7.5" opacity="0.6" fontFamily={frameFontFamily}>
-            {cardCta}
-          </text>
+          {/* Instructions Box with clean padding and wrapping */}
+          <g transform={`translate(0, ${125 + (titleLines.length > 1 ? 10 : 0)})`}>
+            <rect 
+              x="0" 
+              y="0" 
+              width="246" 
+              height={instructionLines.length > 1 ? 52 : 42} 
+              rx="8" 
+              fill={frameColor} 
+              fillOpacity="0.08" 
+              stroke={frameColor} 
+              strokeWidth="1" 
+            />
+            <text x="10" y="16" fill={cardText} fontSize="8.5" fontWeight="600" fontFamily={frameFontFamily}>
+              {instructionLines.map((line, idx) => (
+                <tspan key={idx} x="10" dy={idx === 0 ? 0 : 13}>{line}</tspan>
+              ))}
+            </text>
+            <text x="10" y={instructionLines.length > 1 ? 44 : 33} fill={cardText} fontSize="7.5" opacity="0.6" fontWeight="bold" fontFamily={frameFontFamily}>
+              ★ {cardCta}
+            </text>
+          </g>
         </g>
       </svg>
     );
   }
 
-  // Vertical Top/Bottom Card (260 x 360)
+  // 3. VERTICAL CARD (320 x 440) - Top or Bottom Text
   const isTopText = position === 'top';
-  const qrY = isTopText ? 155 : 25;
-  const textY = isTopText ? 25 : 225;
+  const qrY = isTopText ? 195 : 24;
+  const textY = isTopText ? 24 : 245;
+
+  const titleLines = wrapText(cardTitle, 26);
+  const subtitleLines = wrapText(cardSubtitle, 38);
+  const instructionLines = wrapText(cardInstructions, 34);
 
   return (
     <svg
       ref={svgRef}
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 260 360"
+      viewBox="0 0 320 440"
       className={className}
       style={{ overflow: 'visible' }}
     >
-      <rect x="0" y="0" width="260" height="360" rx="20" fill={cardBg} />
-      <rect x="4" y="4" width="252" height="352" rx="16" fill="none" stroke={frameColor} strokeWidth="3" />
-
-      {/* Text Area */}
-      <g transform={`translate(15, ${textY})`}>
-        <rect x="65" y="0" width="100" height="20" rx="10" fill={frameColor} />
-        <text x="115" y="13" fill={frameTextColor} fontSize="8" fontWeight="bold" fontFamily={frameFontFamily} textAnchor="middle">
-          {frameText}
-        </text>
-
-        <text x="115" y="40" fill={cardText} fontSize="14" fontWeight="bold" fontFamily={frameFontFamily} textAnchor="middle">
-          {cardTitle}
-        </text>
-        <text x="115" y="58" fill={cardText} fontSize="9" opacity="0.8" fontFamily={frameFontFamily} textAnchor="middle">
-          {cardSubtitle}
-        </text>
-
-        <rect x="10" y="72" width="210" height="30" rx="8" fill={frameColor} fillOpacity="0.08" stroke={frameColor} strokeWidth="1" />
-        <text x="115" y="90" fill={cardText} fontSize="8" fontWeight="600" fontFamily={frameFontFamily} textAnchor="middle">
-          {cardInstructions}
-        </text>
-      </g>
+      <rect x="0" y="0" width="320" height="440" rx="20" fill={cardBg} />
+      <rect x="4" y="4" width="312" height="432" rx="16" fill="none" stroke={frameColor} strokeWidth="3" />
 
       {/* QR Code Container */}
-      <g transform={`translate(35, ${qrY})`}>
-        <rect x="0" y="0" width="190" height="190" rx="14" fill="#ffffff" stroke={frameColor} strokeWidth="2" />
-        <svg x="8" y="8" width="174" height="174" viewBox="0 0 1024 1024">
+      <g transform={`translate(55, ${qrY})`}>
+        <rect x="0" y="0" width="210" height="210" rx="14" fill="#ffffff" stroke={frameColor} strokeWidth="2" />
+        <svg x="8" y="8" width="194" height="194" viewBox="0 0 1024 1024">
           <QRCodeSVG
             value={config.value || 'https://neoqr-studio.vercel.app'}
             size={1024}
@@ -702,7 +753,43 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
               excavate: true,
             } : undefined}
           />
+          {config.logoUrl && config.logoBackground && (
+            <circle cx="512" cy="512" r={(computedLogoSize / 2) + 12} fill="#ffffff" opacity="0.95" />
+          )}
         </svg>
+      </g>
+
+      {/* Text Area */}
+      <g transform={`translate(20, ${textY})`}>
+        {/* Badge */}
+        <rect x="90" y="0" width="100" height="22" rx="11" fill={frameColor} />
+        <text x="140" y="15" fill={frameTextColor} fontSize="8.5" fontWeight="bold" fontFamily={frameFontFamily} textAnchor="middle">
+          {frameText}
+        </text>
+
+        {/* Title */}
+        <text x="140" y="44" fill={cardText} fontSize="15" fontWeight="bold" fontFamily={frameFontFamily} textAnchor="middle">
+          {titleLines.map((line, idx) => (
+            <tspan key={idx} x="140" dy={idx === 0 ? 0 : 19}>{line}</tspan>
+          ))}
+        </text>
+
+        {/* Subtitle */}
+        <text x="140" y={44 + (titleLines.length * 19) + 2} fill={cardText} fontSize="9.5" opacity="0.8" fontFamily={frameFontFamily} textAnchor="middle">
+          {subtitleLines.map((line, idx) => (
+            <tspan key={idx} x="140" dy={idx === 0 ? 0 : 13}>{line}</tspan>
+          ))}
+        </text>
+
+        {/* Instructions */}
+        <g transform={`translate(10, ${85 + (titleLines.length > 1 ? 8 : 0)})`}>
+          <rect x="0" y="0" width="260" height={instructionLines.length > 1 ? 46 : 34} rx="8" fill={frameColor} fillOpacity="0.08" stroke={frameColor} strokeWidth="1" />
+          <text x="130" y={instructionLines.length > 1 ? 16 : 21} fill={cardText} fontSize="8.5" fontWeight="600" fontFamily={frameFontFamily} textAnchor="middle">
+            {instructionLines.map((line, idx) => (
+              <tspan key={idx} x="130" dy={idx === 0 ? 0 : 13}>{line}</tspan>
+            ))}
+          </text>
+        </g>
       </g>
     </svg>
   );

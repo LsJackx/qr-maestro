@@ -72,13 +72,24 @@ export interface QRCodeConfig {
   vcardPhone?: string;
   vcardEmail?: string;
 
-  // Dynamic QR / Smart QR Fields
+  // Dynamic QR / Smart QR Fields & Landing Customization
   isDynamic: boolean;
   dynamicTitle?: string;
   dynamicDescription?: string;
   dynamicButtonText?: string;
   dynamicImageUrl?: string;
   shortId?: string; // ID único para la base de datos
+  
+  // Landing Page Detailed Customization
+  landingLogoUrl?: string; // Logo específico para la landing
+  landingThemeColor?: string; // Color primario de marca / botones / header
+  landingBgColor?: string; // Fondo de la landing page
+  landingTextColor?: string; // Color de texto
+  landingExtraNotes?: string; // Zona de texto adicional / horarios / promos / disclaimer
+  landingWhatsapp?: string; // Enlace directo a WhatsApp
+  landingInstagram?: string; // Usuario / Link de Instagram
+  landingPhone?: string; // Botón de llamada directa
+  landingWebsite?: string; // Botón de sitio web adicional
   
   // Restrictions / Life Cycle
   expiryDate?: string; // ISO String

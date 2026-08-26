@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { ArrowRight, Lock, Wifi, Globe, MapPin, Video, CreditCard, CheckCircle2, ExternalLink } from 'lucide-react';
+import { ArrowRight, Lock, Wifi, Globe, MapPin, Video, CreditCard, CheckCircle2, ExternalLink, MessageCircle, Instagram, Phone, Share2 } from 'lucide-react';
 import { QRCodeConfig } from '../types';
 import { recordScan } from '../services/firebase';
 
@@ -32,7 +32,9 @@ export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
               targetContent: parsed.u,
               contentType: parsed.ct || 'URL',
               wifiSsid: parsed.ss,
-              wifiPass: parsed.sp
+              wifiPass: parsed.sp,
+              landingThemeColor: parsed.tc,
+              landingExtraNotes: parsed.en
             };
           } catch (e) {
             console.error("Error parsing legacy data:", e);
@@ -89,19 +91,16 @@ export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
     }
 
     // 2. Determine URL Destination
-    // Priority: targetContent -> value (if url-like)
     let url = parsedConfig.targetContent;
     
     if (!url && parsedConfig.value) {
-        // Prevent infinite loop if value is the dynamic link itself
         if (!parsedConfig.value.includes('?id=')) {
            url = parsedConfig.value;
         }
     }
 
     if (!url) {
-        alert("Lo sentimos, este código QR no tiene un destino configurado.");
-        console.error("[Action] Missing targetContent and valid value.");
+        alert("Este código QR no tiene un destino configurado actualmente.");
         return;
     }
 
@@ -110,12 +109,8 @@ export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
       url = `https://${url}`;
     }
 
-    console.log("[Action] Opening URL:", url);
-    
-    // 4. Redirect securely
     const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
     if (!newWindow) {
-       // Pop-up blocker or fallback
        window.location.href = url;
     }
   };
@@ -142,54 +137,82 @@ export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
     );
   }
 
+  const themeColor = parsedConfig.landingThemeColor || '#4f46e5';
+  const pageBg = parsedConfig.landingBgColor || '#f8fafc';
+  const logoImage = parsedConfig.landingLogoUrl || parsedConfig.dynamicImageUrl || parsedConfig.logoUrl;
+
   return (
-    <div className="min-h-screen bg-gray-50 text-slate-900 font-sans selection:bg-indigo-500 selection:text-white">
+    <div 
+      className="min-h-screen font-sans selection:text-white"
+      style={{ backgroundColor: pageBg }}
+    >
       {/* Top Brand Bar */}
-      <div className="w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+      <div className="w-full h-2.5" style={{ backgroundColor: themeColor }}></div>
 
       <main className="max-w-md mx-auto min-h-screen bg-white shadow-2xl overflow-hidden relative flex flex-col">
         
         {/* Hero Header */}
-        <div className="bg-slate-900 text-white pt-12 pb-16 px-8 rounded-b-[3rem] shadow-lg relative z-10">
-          <div className="flex justify-center mb-6">
-             <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border-2 border-white/20">
-                {parsedConfig.contentType === 'WIFI' && <Wifi className="w-8 h-8" />}
-                {parsedConfig.contentType === 'LOCATION' && <MapPin className="w-8 h-8" />}
-                {parsedConfig.contentType === 'VIDEO' && <Video className="w-8 h-8" />}
-                {parsedConfig.contentType === 'VCARD' && <CreditCard className="w-8 h-8" />}
-                {(!parsedConfig.contentType || parsedConfig.contentType === 'URL') && <Globe className="w-8 h-8" />}
+        <div 
+          className="text-white pt-10 pb-16 px-8 rounded-b-[2.5rem] shadow-lg relative z-10 transition-colors"
+          style={{ 
+            background: `linear-gradient(135deg, ${themeColor} 0%, #1e1b4b 100%)` 
+          }}
+        >
+          <div className="flex justify-center mb-5">
+             <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center border-2 border-white/40 shadow-md overflow-hidden p-1.5">
+                {logoImage ? (
+                  <img src={logoImage} alt="Logo" className="w-full h-full object-contain rounded-xl" />
+                ) : (
+                  <div className="text-indigo-600 flex items-center justify-center w-full h-full">
+                    {parsedConfig.contentType === 'WIFI' && <Wifi className="w-8 h-8 text-indigo-600" />}
+                    {parsedConfig.contentType === 'LOCATION' && <MapPin className="w-8 h-8 text-indigo-600" />}
+                    {parsedConfig.contentType === 'VIDEO' && <Video className="w-8 h-8 text-indigo-600" />}
+                    {parsedConfig.contentType === 'VCARD' && <CreditCard className="w-8 h-8 text-indigo-600" />}
+                    {(!parsedConfig.contentType || parsedConfig.contentType === 'URL') && <Globe className="w-8 h-8 text-indigo-600" />}
+                  </div>
+                )}
              </div>
           </div>
-          <h1 className="text-2xl font-bold text-center leading-tight mb-2">{parsedConfig.dynamicTitle || 'Bienvenido'}</h1>
-          <p className="text-slate-300 text-center text-sm leading-relaxed opacity-90">{parsedConfig.dynamicDescription || 'Haz clic abajo para continuar.'}</p>
+          
+          <h1 className="text-2xl font-black text-center leading-tight mb-2 text-white drop-shadow-sm">
+            {parsedConfig.dynamicTitle || 'Bienvenido'}
+          </h1>
+          <p className="text-white/85 text-center text-sm leading-relaxed max-w-xs mx-auto">
+            {parsedConfig.dynamicDescription || 'Haz clic en el botón para continuar al contenido principal.'}
+          </p>
         </div>
 
         {/* Content Card */}
-        <div className="flex-1 px-6 -mt-8 relative z-20 pb-12">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 flex flex-col items-center">
+        <div className="flex-1 px-6 -mt-8 relative z-20 pb-10">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 flex flex-col items-center">
             
-            <div className="w-full py-6 flex flex-col gap-4">
+            <div className="w-full py-4 flex flex-col gap-4">
                 {/* If WiFi, show details */}
                 {parsedConfig.contentType === 'WIFI' && (
-                  <div className="bg-indigo-50 rounded-xl p-4 text-center border border-indigo-100">
+                  <div className="bg-indigo-50/80 rounded-xl p-4 text-center border border-indigo-100">
                     <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider mb-1">Red WiFi</p>
                     <p className="text-lg font-mono font-bold text-indigo-900 break-all">{parsedConfig.wifiSsid}</p>
+                    {parsedConfig.wifiPass && (
+                      <p className="text-xs text-slate-500 mt-1 font-mono">Clave: ••••••••</p>
+                    )}
                   </div>
                 )}
 
-                {/* If URL/Generic */}
+                {/* If URL/Generic destination info */}
                 {(parsedConfig.contentType === 'URL' || !parsedConfig.contentType) && parsedConfig.targetContent && (
-                   <div className="bg-gray-50 rounded-lg p-2 px-3 text-center border border-gray-100 mb-2">
-                      <p className="text-[10px] text-slate-400 uppercase font-bold">Destino</p>
-                      <p className="text-xs text-slate-500 truncate max-w-[200px] mx-auto">{parsedConfig.targetContent}</p>
+                   <div className="bg-slate-50 rounded-xl p-2.5 px-3.5 text-center border border-slate-100">
+                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Destino Verificado</p>
+                      <p className="text-xs text-slate-600 font-medium truncate max-w-[240px] mx-auto mt-0.5">{parsedConfig.targetContent}</p>
                    </div>
                 )}
 
+                {/* Primary Action Button */}
                 <button 
                   onClick={handleAction}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-indigo-200 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 group"
+                  style={{ backgroundColor: themeColor }}
+                  className="w-full text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-all transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-3 group"
                 >
-                  <span>{parsedConfig.dynamicButtonText || 'Continuar'}</span>
+                  <span className="text-base font-extrabold">{parsedConfig.dynamicButtonText || 'Continuar al Enlace'}</span>
                   {parsedConfig.contentType === 'WIFI' ? (
                       <Wifi className="w-5 h-5" />
                   ) : (
@@ -197,21 +220,81 @@ export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
                   )}
                 </button>
                 
-                <div className="text-center mt-2">
-                  <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-                    <CheckCircle2 className="w-3 h-3 text-green-500" />
-                    Enlace verificado y seguro
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    Enlace seguro y verificado
                   </div>
                 </div>
+
+                {/* Optional Additional Custom Text Zone (Notes / Schedules / Promo) */}
+                {parsedConfig.landingExtraNotes && (
+                  <div className="mt-2 pt-4 border-t border-gray-100">
+                    <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/60 text-slate-700 text-xs leading-relaxed whitespace-pre-line">
+                      {parsedConfig.landingExtraNotes}
+                    </div>
+                  </div>
+                )}
+
+                {/* Optional Quick Contact & Social Links */}
+                {(parsedConfig.landingWhatsapp || parsedConfig.landingInstagram || parsedConfig.landingPhone || parsedConfig.landingWebsite) && (
+                  <div className="mt-2 pt-4 border-t border-gray-100">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center mb-3">Contacto Directo</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {parsedConfig.landingWhatsapp && (
+                        <a
+                          href={`https://wa.me/${parsedConfig.landingWhatsapp.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs hover:bg-emerald-100 transition-colors"
+                        >
+                          <MessageCircle className="w-4 h-4 text-emerald-600" />
+                          <span>WhatsApp</span>
+                        </a>
+                      )}
+                      {parsedConfig.landingInstagram && (
+                        <a
+                          href={parsedConfig.landingInstagram.startsWith('http') ? parsedConfig.landingInstagram : `https://instagram.com/${parsedConfig.landingInstagram.replace('@', '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-pink-50 text-pink-700 font-bold text-xs hover:bg-pink-100 transition-colors"
+                        >
+                          <Instagram className="w-4 h-4 text-pink-600" />
+                          <span>Instagram</span>
+                        </a>
+                      )}
+                      {parsedConfig.landingPhone && (
+                        <a
+                          href={`tel:${parsedConfig.landingPhone}`}
+                          className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs hover:bg-blue-100 transition-colors"
+                        >
+                          <Phone className="w-4 h-4 text-blue-600" />
+                          <span>Llamar</span>
+                        </a>
+                      )}
+                      {parsedConfig.landingWebsite && (
+                        <a
+                          href={parsedConfig.landingWebsite.startsWith('http') ? parsedConfig.landingWebsite : `https://${parsedConfig.landingWebsite}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200 transition-colors"
+                        >
+                          <Globe className="w-4 h-4 text-slate-600" />
+                          <span>Sitio Web</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
             </div>
 
           </div>
           
           {/* Footer Brand */}
-          <div className="mt-12 text-center opacity-50 hover:opacity-100 transition-opacity">
+          <div className="mt-8 text-center opacity-60 hover:opacity-100 transition-opacity">
              <p className="text-xs text-slate-400 font-medium flex items-center justify-center gap-1">
                 <ExternalLink className="w-3 h-3" />
-                Creado con NeoQR Studio
+                Creado con QRMaestro
              </p>
           </div>
         </div>

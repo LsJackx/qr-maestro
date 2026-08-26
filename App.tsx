@@ -38,7 +38,10 @@ import {
   Sparkles,
   CheckCircle2,
   FileText,
-  Sliders
+  Sliders,
+  MessageCircle,
+  Instagram,
+  FileEdit
 } from 'lucide-react';
 import { HistoryPanel } from './components/HistoryPanel';
 import { HeroSection } from './components/HeroSection';
@@ -80,7 +83,10 @@ const DEFAULT_CONFIG: QRCodeConfig = {
   cardInstructions: '1. Abre tu cámara • 2. Enfoca el código • 3. Toca el enlace',
   cardCta: 'Acceso seguro sin contacto',
   cardBgColor: '#ffffff',
-  cardTextColor: '#1e293b'
+  cardTextColor: '#1e293b',
+  landingThemeColor: '#4f46e5',
+  landingBgColor: '#f8fafc',
+  landingTextColor: '#1e293b'
 };
 
 export default function App() {
@@ -88,7 +94,7 @@ export default function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true); // Default open on desktop
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<'CONTENT' | 'STYLE' | 'TEXT' | 'LOGO'>('CONTENT');
+  const [activeTab, setActiveTab] = useState<'CONTENT' | 'LANDING' | 'STYLE' | 'TEXT' | 'LOGO'>('CONTENT');
   
   // Navigation State
   const [view, setView] = useState<'LANDING' | 'GENERATOR' | 'VIEWER' | 'LOADING'>(() => {
@@ -129,6 +135,16 @@ export default function App() {
   const [expiry, setExpiry] = useState('');
   const [scanLimit, setScanLimit] = useState('');
   const [password, setPassword] = useState('');
+
+  // Landing Customization States
+  const [landingLogoUrl, setLandingLogoUrl] = useState<string | undefined>(undefined);
+  const [landingThemeColor, setLandingThemeColor] = useState('#4f46e5');
+  const [landingBgColor, setLandingBgColor] = useState('#f8fafc');
+  const [landingExtraNotes, setLandingExtraNotes] = useState('');
+  const [landingWhatsapp, setLandingWhatsapp] = useState('');
+  const [landingInstagram, setLandingInstagram] = useState('');
+  const [landingPhone, setLandingPhone] = useState('');
+  const [landingWebsite, setLandingWebsite] = useState('');
 
   // Random Short ID for session
   const [shortId, setShortId] = useState(() => Math.random().toString(36).substring(2, 9));
@@ -225,6 +241,14 @@ export default function App() {
       setExpiry('');
       setScanLimit('');
       setPassword('');
+      setLandingLogoUrl(undefined);
+      setLandingThemeColor('#4f46e5');
+      setLandingBgColor('#f8fafc');
+      setLandingExtraNotes('');
+      setLandingWhatsapp('');
+      setLandingInstagram('');
+      setLandingPhone('');
+      setLandingWebsite('');
       setShortId(Math.random().toString(36).substring(2, 9));
       setActiveTab('CONTENT');
     }
@@ -254,13 +278,21 @@ export default function App() {
       dynamicTitle: dynTitle,
       dynamicDescription: dynDesc,
       dynamicButtonText: dynBtn,
+      landingLogoUrl: landingLogoUrl,
+      landingThemeColor: landingThemeColor,
+      landingBgColor: landingBgColor,
+      landingExtraNotes: landingExtraNotes,
+      landingWhatsapp: landingWhatsapp,
+      landingInstagram: landingInstagram,
+      landingPhone: landingPhone,
+      landingWebsite: landingWebsite,
       expiryDate: expiry,
       scanLimit: scanLimit ? parseInt(scanLimit) : undefined,
       password: password,
       passwordProtected: !!password
     }));
     
-  }, [urlInput, wifiSsid, wifiPass, videoUrl, geoLat, geoLon, vcardName, vcardPhone, vcardEmail, config.contentType, config.isDynamic, dynTitle, dynDesc, dynBtn, expiry, scanLimit, password, shortId]);
+  }, [urlInput, wifiSsid, wifiPass, videoUrl, geoLat, geoLon, vcardName, vcardPhone, vcardEmail, config.contentType, config.isDynamic, dynTitle, dynDesc, dynBtn, landingLogoUrl, landingThemeColor, landingBgColor, landingExtraNotes, landingWhatsapp, landingInstagram, landingPhone, landingWebsite, expiry, scanLimit, password, shortId]);
 
   // Reset dynamic defaults
   useEffect(() => {
@@ -268,17 +300,17 @@ export default function App() {
       case 'WIFI': 
         setDynTitle(prev => prev || 'Conexión WiFi'); 
         setDynDesc(prev => prev || `Únete a la red "${wifiSsid || '...' }" fácilmente.`);
-        setDynBtn(prev => prev || 'Conectar');
+        setDynBtn(prev => prev || 'Conectar a WiFi');
         break;
       case 'URL': 
-        setDynTitle(prev => prev || 'Visita nuestro sitio');
-        setDynDesc(prev => prev || 'Descubre más información en nuestra web oficial.');
-        setDynBtn(prev => prev || 'Ir al Sitio');
+        setDynTitle(prev => prev || 'Visita nuestro enlace');
+        setDynDesc(prev => prev || 'Accede al contenido oficial al instante.');
+        setDynBtn(prev => prev || 'Continuar al Sitio');
         break;
       default:
-        if (!dynTitle) setDynTitle('Código QR');
-        if (!dynDesc) setDynDesc('Escanea para ver el contenido');
-        if (!dynBtn) setDynBtn('Abrir');
+        if (!dynTitle) setDynTitle('Bienvenido');
+        if (!dynDesc) setDynDesc('Haz clic abajo para continuar.');
+        if (!dynBtn) setDynBtn('Acceder Ahora');
     }
   }, [config.contentType]);
 
@@ -300,7 +332,7 @@ export default function App() {
         ...config,
         id: config.shortId!, 
         createdAt: Date.now(),
-        title: config.isDynamic ? `[Smart] ${dynTitle}` : (config.contentType === 'URL' ? urlInput : config.contentType),
+        title: config.isDynamic ? `[Smart] ${dynTitle || 'QR Dinámico'}` : (config.contentType === 'URL' ? urlInput : config.contentType),
         wifiSsid, wifiPass, locationLat: geoLat, locationLon: geoLon, vcardName, vcardPhone, vcardEmail
       };
       
@@ -336,6 +368,14 @@ export default function App() {
     setDynTitle(item.dynamicTitle || '');
     setDynDesc(item.dynamicDescription || '');
     setDynBtn(item.dynamicButtonText || '');
+    setLandingLogoUrl(item.landingLogoUrl);
+    setLandingThemeColor(item.landingThemeColor || '#4f46e5');
+    setLandingBgColor(item.landingBgColor || '#f8fafc');
+    setLandingExtraNotes(item.landingExtraNotes || '');
+    setLandingWhatsapp(item.landingWhatsapp || '');
+    setLandingInstagram(item.landingInstagram || '');
+    setLandingPhone(item.landingPhone || '');
+    setLandingWebsite(item.landingWebsite || '');
     setExpiry(item.expiryDate || '');
     setPassword(item.password || '');
     
@@ -369,6 +409,17 @@ export default function App() {
       reader.readAsDataURL(file);
     }
   };
+
+  const handleLandingLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLandingLogoUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
   
   const openAnalyticsForCurrent = () => {
      if (!user) return setAuthModalOpen(true);
@@ -376,7 +427,7 @@ export default function App() {
      const item: HistoryItem = {
         ...config,
         id: config.shortId!,
-        title: dynTitle,
+        title: dynTitle || 'Mi Código QR',
         createdAt: Date.now()
      };
      setAnalyticsItem(item);
@@ -492,7 +543,17 @@ export default function App() {
              <AdPlaceholder format="horizontal" className="h-12 max-w-md mx-auto bg-transparent border-dashed" label="Espacio Patrocinado" />
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* ESTADÍSTICAS BUTTON IN TOP MENU */}
+            <button 
+              onClick={openAnalyticsForCurrent}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+              title="Ver estadísticas y métricas de escaneo"
+            >
+              <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden sm:inline">Estadísticas</span>
+            </button>
+
             <button onClick={() => setDarkMode(!darkMode)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
               {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
@@ -550,6 +611,16 @@ export default function App() {
                  >
                    <LayoutGrid className="w-4 h-4" /> Contenido
                  </button>
+
+                 {config.isDynamic && (
+                   <button 
+                     onClick={() => setActiveTab('LANDING')}
+                     className={`px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'LANDING' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
+                   >
+                     <Smartphone className="w-4 h-4 text-indigo-400" /> Página Móvil
+                   </button>
+                 )}
+
                  <button 
                    onClick={() => setActiveTab('STYLE')}
                    className={`px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'STYLE' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
@@ -566,7 +637,7 @@ export default function App() {
                    onClick={() => setActiveTab('LOGO')}
                    className={`px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'LOGO' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
                  >
-                   <ImageIcon className="w-4 h-4" /> Logo
+                   <ImageIcon className="w-4 h-4" /> Logo QR
                  </button>
               </div>
 
@@ -616,41 +687,11 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* DYNAMIC CONFIG PANEL */}
-                  {config.isDynamic && (
-                    <div className="bg-gradient-to-b from-indigo-50 to-white dark:from-indigo-900/20 dark:to-slate-900 rounded-xl shadow-sm border border-indigo-100 dark:border-indigo-800/50 p-5 border-l-4 border-l-indigo-500">
-                       <div className="flex justify-between items-start mb-3">
-                          <h2 className="text-sm font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-2">
-                            <Smartphone className="w-4 h-4" />
-                            Landing Page Móvil
-                          </h2>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                             ID: {config.shortId}
-                          </span>
-                       </div>
-                       
-                       <div className="space-y-3">
-                          <div>
-                            <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">Título</label>
-                            <input type="text" value={dynTitle} onChange={e => setDynTitle(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2 text-sm" placeholder="Ej. Conectar a WiFi" />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">Descripción</label>
-                            <textarea value={dynDesc} onChange={e => setDynDesc(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2 text-sm h-16 resize-none" placeholder="Ej. Escanea para obtener la clave..." />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">Texto del Botón</label>
-                            <input type="text" value={dynBtn} onChange={e => setDynBtn(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2 text-sm" placeholder="Ej. Acceder Ahora" />
-                          </div>
-                       </div>
-                    </div>
-                  )}
-
                   {/* Input Forms (Standard Content) */}
                   <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 p-5">
                     <h2 className="text-sm font-bold mb-3 text-slate-800 dark:text-slate-200 flex items-center gap-2">
                       <PlusCircle className="w-4 h-4 text-indigo-500" />
-                      {config.isDynamic ? 'Destino Final' : 'Contenido del QR'}
+                      {config.isDynamic ? 'Destino Final del QR' : 'Contenido del QR'}
                     </h2>
                     
                     {config.contentType === 'URL' && (
@@ -683,7 +724,6 @@ export default function App() {
                         />
                       </div>
                     )}
-                    {/* Other inputs reduced size similarly... */}
                     {config.contentType === 'VIDEO' && (
                          <input type="url" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2.5 text-sm" placeholder="https://youtube.com/..." />
                     )}
@@ -701,6 +741,285 @@ export default function App() {
                       </div>
                     )}
                   </div>
+
+                  {/* SHORTCUT TO LANDING CUSTOMIZER IF DYNAMIC */}
+                  {config.isDynamic && (
+                    <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 rounded-xl p-4 flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                          <Smartphone className="w-6 h-6 text-indigo-600" />
+                          <div>
+                            <p className="text-xs font-bold text-indigo-950 dark:text-indigo-200">Personalizar Página Móvil</p>
+                            <p className="text-[11px] text-indigo-700 dark:text-indigo-400">Modifica logo, colores, texto adicional y botones de contacto.</p>
+                          </div>
+                       </div>
+                       <button 
+                         onClick={() => setActiveTab('LANDING')}
+                         className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1"
+                       >
+                         <span>Configurar</span>
+                         <ArrowRight className="w-3.5 h-3.5" />
+                       </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB CONTENT: LANDING CUSTOMIZATION */}
+              {activeTab === 'LANDING' && (
+                <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 p-5 space-y-6 animate-in slide-in-from-bottom-2 fade-in duration-300">
+                  
+                  {/* Header / Intro */}
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-3">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                        <Smartphone className="w-5 h-5 text-indigo-600" />
+                        Página de Destino Móvil (Landing Page)
+                      </h2>
+                      <p className="text-xs text-slate-500">Personaliza la experiencia completa que verán los usuarios al escanear este código QR.</p>
+                    </div>
+                    <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950 text-indigo-600 font-mono px-2 py-1 rounded border border-indigo-200 dark:border-indigo-800">
+                      ID: {config.shortId}
+                    </span>
+                  </div>
+
+                  {/* Brand Logo for Landing */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2.5 block">1. Logo / Imagen de la Landing</label>
+                    <div className="flex items-center gap-4">
+                       <div className="w-20 h-20 bg-gray-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-slate-700 relative overflow-hidden group shadow-sm">
+                          {landingLogoUrl ? (
+                            <>
+                              <img src={landingLogoUrl} alt="Logo Landing" className="w-full h-full object-contain p-2" />
+                              <button 
+                                onClick={() => setLandingLogoUrl(undefined)} 
+                                className="absolute inset-0 bg-red-600/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white font-bold text-xs"
+                              >
+                                Quitar
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-slate-400 text-center px-1">Sin Logo</span>
+                          )}
+                       </div>
+                       
+                       <div className="flex-1 space-y-2">
+                          <label className="block w-full cursor-pointer">
+                             <div className="w-full bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                <Upload className="w-4 h-4" />
+                                <span className="text-xs font-bold">Subir Logo para la Landing</span>
+                             </div>
+                             <input type="file" accept="image/*" onChange={handleLandingLogoUpload} className="hidden" />
+                          </label>
+
+                          {config.logoUrl && !landingLogoUrl && (
+                            <button
+                              onClick={() => setLandingLogoUrl(config.logoUrl)}
+                              className="text-[11px] text-indigo-600 hover:underline font-medium block"
+                            >
+                              Copiar logo del código QR
+                            </button>
+                          )}
+                       </div>
+                    </div>
+                  </div>
+
+                  {/* Colors Customization */}
+                  <div className="space-y-4 pt-3 border-t border-gray-100 dark:border-slate-800">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">2. Colores del Tema</label>
+                    
+                    {/* Header/Theme Color */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Color de Cabecera y Botón Principal</span>
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="color" 
+                            value={landingThemeColor} 
+                            onChange={(e) => setLandingThemeColor(e.target.value)} 
+                            className="w-6 h-6 rounded cursor-pointer border-none bg-transparent" 
+                          />
+                          <span className="text-xs font-mono uppercase">{landingThemeColor}</span>
+                        </div>
+                      </div>
+
+                      {/* Presets */}
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { name: 'Índigo', color: '#4f46e5' },
+                          { name: 'Esmeralda', color: '#059669' },
+                          { name: 'Azul', color: '#2563eb' },
+                          { name: 'Púrpura', color: '#9333ea' },
+                          { name: 'Rosa Neón', color: '#db2777' },
+                          { name: 'Ámbar', color: '#d97706' },
+                          { name: 'Grafito', color: '#1e293b' },
+                        ].map((p) => (
+                          <button
+                            key={p.color}
+                            onClick={() => setLandingThemeColor(p.color)}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all"
+                            style={{ 
+                              borderColor: landingThemeColor === p.color ? p.color : '#e2e8f0',
+                              backgroundColor: landingThemeColor === p.color ? `${p.color}15` : 'transparent' 
+                            }}
+                          >
+                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }}></span>
+                            <span>{p.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Page Background Color */}
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Fondo de la Pantalla</span>
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="color" 
+                            value={landingBgColor} 
+                            onChange={(e) => setLandingBgColor(e.target.value)} 
+                            className="w-6 h-6 rounded cursor-pointer border-none bg-transparent" 
+                          />
+                          <span className="text-xs font-mono uppercase">{landingBgColor}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { name: 'Luminoso', color: '#f8fafc' },
+                          { name: 'Blanco Puro', color: '#ffffff' },
+                          { name: 'Gris Claro', color: '#f1f5f9' },
+                          { name: 'Crema Cálido', color: '#fafaf9' },
+                          { name: 'Oscuro Noche', color: '#0f172a' },
+                        ].map((p) => (
+                          <button
+                            key={p.color}
+                            onClick={() => setLandingBgColor(p.color)}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-700 hover:border-gray-400 transition-all"
+                          >
+                            <span className="w-3 h-3 rounded-full border border-gray-300" style={{ backgroundColor: p.color }}></span>
+                            <span>{p.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Texts Configuration */}
+                  <div className="space-y-3.5 pt-3 border-t border-gray-100 dark:border-slate-800">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">3. Textos y Mensajes de Bienvenida</label>
+                    
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-1 block">Título Principal</label>
+                      <input 
+                        type="text" 
+                        value={dynTitle} 
+                        onChange={e => setDynTitle(e.target.value)} 
+                        className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2.5 text-sm font-semibold" 
+                        placeholder="Ej. Bienvenidos a Café Gourmet" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-1 block">Descripción / Subtítulo</label>
+                      <textarea 
+                        value={dynDesc} 
+                        onChange={e => setDynDesc(e.target.value)} 
+                        className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2.5 text-sm h-16 resize-none" 
+                        placeholder="Ej. Toca el botón para ver nuestra carta digital con promociones exclusivas." 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-1 block">Texto del Botón de Acción</label>
+                      <input 
+                        type="text" 
+                        value={dynBtn} 
+                        onChange={e => setDynBtn(e.target.value)} 
+                        className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2.5 text-sm" 
+                        placeholder="Ej. Ver Carta y Menú" 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Additional Text Zone (Extra Notes / Schedules / Promo) */}
+                  <div className="space-y-2 pt-3 border-t border-gray-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">4. Zona de Texto Adicional (Horarios, Notas, Promos)</label>
+                      <span className="text-[10px] text-slate-400">Opcional</span>
+                    </div>
+                    <textarea 
+                      value={landingExtraNotes} 
+                      onChange={e => setLandingExtraNotes(e.target.value)} 
+                      className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2.5 text-sm h-24 resize-none leading-relaxed" 
+                      placeholder="Ej: 🕒 Horario de Atención: Lunes a Viernes 09:00 a 20:00 hs.&#10;🎉 Promo del día: 15% OFF abonando en efectivo." 
+                    />
+                    <p className="text-[11px] text-slate-400">
+                      Este bloque se mostrará destacado como una tarjeta de información complementaria dentro de la landing page.
+                    </p>
+                  </div>
+
+                  {/* Direct Contact & Social Links */}
+                  <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">5. Canales de Contacto Directo</label>
+                      <span className="text-[10px] text-slate-400">Botones de acceso rápido</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 mb-1">
+                          <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                        </label>
+                        <input 
+                          type="text" 
+                          value={landingWhatsapp} 
+                          onChange={e => setLandingWhatsapp(e.target.value)} 
+                          className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2 text-xs" 
+                          placeholder="Ej: +5491123456789" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-pink-600 flex items-center gap-1 mb-1">
+                          <Instagram className="w-3.5 h-3.5" /> Instagram
+                        </label>
+                        <input 
+                          type="text" 
+                          value={landingInstagram} 
+                          onChange={e => setLandingInstagram(e.target.value)} 
+                          className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2 text-xs" 
+                          placeholder="Ej: @mitienda" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-blue-600 flex items-center gap-1 mb-1">
+                          <Phone className="w-3.5 h-3.5" /> Teléfono
+                        </label>
+                        <input 
+                          type="tel" 
+                          value={landingPhone} 
+                          onChange={e => setLandingPhone(e.target.value)} 
+                          className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2 text-xs" 
+                          placeholder="Ej: +1 555-0199" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1 mb-1">
+                          <Globe className="w-3.5 h-3.5" /> Sitio Web Alternativo
+                        </label>
+                        <input 
+                          type="url" 
+                          value={landingWebsite} 
+                          onChange={e => setLandingWebsite(e.target.value)} 
+                          className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2 text-xs" 
+                          placeholder="https://mitienda.com" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               )}
 
@@ -1140,16 +1459,6 @@ export default function App() {
                           {config.isDynamic ? 'Guardar Smart' : 'Guardar QR'}
                         </button>
                       </div>
-                      
-                      {/* ANALYTICS BUTTON PROMINENT */}
-                      {config.isDynamic && (
-                        <button 
-                          onClick={openAnalyticsForCurrent}
-                          className="w-full mt-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/30 border border-transparent font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all transform active:scale-95 text-sm"
-                        >
-                           <BarChart3 className="w-4 h-4" /> Ver Estadísticas
-                        </button>
-                      )}
                     </div>
                   )}
                 </div>
