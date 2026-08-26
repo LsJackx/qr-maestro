@@ -506,6 +506,140 @@ function wrapText(text: string, maxChars: number): string[] {
   return result.length > 0 ? result : [text];
 }
 
+// HELPER FOR INNER QR IN CARD (RESPECTS ACTIVE FRAME AND STYLES)
+const RenderFramedOrPlainQR: React.FC<{
+  config: QRCodeConfig;
+  activeFrame: QRFrame;
+  frameColor: string;
+  frameTextColor: string;
+  frameText: string;
+  frameFontFamily: string;
+  computedLogoSize: number;
+  width: number;
+  height: number;
+}> = ({
+  config,
+  activeFrame,
+  frameColor,
+  frameTextColor,
+  frameText,
+  frameFontFamily,
+  computedLogoSize,
+  width,
+  height
+}) => {
+  const hasFrame = activeFrame && activeFrame.id !== 'none';
+
+  if (hasFrame) {
+    return (
+      <svg
+        width={width}
+        height={height}
+        viewBox={activeFrame.viewBox}
+        style={{ overflow: 'visible' }}
+      >
+        {/* Frame Background */}
+        <rect
+          x="0"
+          y="0"
+          width="100%"
+          height="100%"
+          fill={config.bgColor || '#ffffff'}
+          rx={activeFrame.borderRadius || 0}
+        />
+
+        {/* Frame Visual Elements */}
+        {renderFrameShape(activeFrame, config, frameColor, frameTextColor, frameText, frameFontFamily)}
+
+        {/* Inner QR Matrix */}
+        <svg
+          x={activeFrame.qrX}
+          y={activeFrame.qrY}
+          width={activeFrame.qrSize}
+          height={activeFrame.qrSize}
+          viewBox="0 0 1024 1024"
+        >
+          <QRCodeSVG
+            value={config.value || 'https://neoqr-studio.vercel.app'}
+            size={1024}
+            level={config.level || 'H'}
+            fgColor={config.fgColor}
+            bgColor="transparent"
+            marginSize={config.includeMargin ? 2 : 0}
+            imageSettings={config.logoUrl ? {
+              src: config.logoUrl,
+              height: computedLogoSize,
+              width: computedLogoSize,
+              excavate: true,
+            } : undefined}
+          />
+          {config.logoUrl && config.logoBackground && (
+            <circle
+              cx="512"
+              cy="512"
+              r={(computedLogoSize / 2) + 12}
+              fill="#ffffff"
+              opacity="0.95"
+              style={{ pointerEvents: 'none' }}
+            />
+          )}
+        </svg>
+      </svg>
+    );
+  }
+
+  // Plain QR without frame
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 100 100"
+      style={{ overflow: 'visible' }}
+    >
+      <rect
+        x="0"
+        y="0"
+        width="100"
+        height="100"
+        fill={config.bgColor || '#ffffff'}
+        rx="8"
+      />
+      <svg
+        x="5"
+        y="5"
+        width="90"
+        height="90"
+        viewBox="0 0 1024 1024"
+      >
+        <QRCodeSVG
+          value={config.value || 'https://neoqr-studio.vercel.app'}
+          size={1024}
+          level={config.level || 'H'}
+          fgColor={config.fgColor}
+          bgColor="transparent"
+          marginSize={config.includeMargin ? 2 : 0}
+          imageSettings={config.logoUrl ? {
+            src: config.logoUrl,
+            height: computedLogoSize,
+            width: computedLogoSize,
+            excavate: true,
+          } : undefined}
+        />
+        {config.logoUrl && config.logoBackground && (
+          <circle
+            cx="512"
+            cy="512"
+            r={(computedLogoSize / 2) + 12}
+            fill="#ffffff"
+            opacity="0.95"
+            style={{ pointerEvents: 'none' }}
+          />
+        )}
+      </svg>
+    </svg>
+  );
+};
+
 // FULL CARD / FLYER / INSTRUCTIONS RENDERER
 interface CardQRRendererProps {
   config: QRCodeConfig;
@@ -579,28 +713,20 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
           ))}
         </text>
 
-        {/* Center QR Box */}
+        {/* Center QR Box with Active Frame */}
         <g transform="translate(80, 185)">
-          <rect x="-8" y="-8" width="216" height="216" rx="16" fill="#ffffff" stroke={frameColor} strokeWidth="2.5" />
-          <svg width="200" height="200" viewBox="0 0 1024 1024">
-            <QRCodeSVG
-              value={config.value || 'https://neoqr-studio.vercel.app'}
-              size={1024}
-              level={config.level || 'H'}
-              fgColor={config.fgColor}
-              bgColor="transparent"
-              marginSize={config.includeMargin ? 2 : 0}
-              imageSettings={config.logoUrl ? {
-                src: config.logoUrl,
-                height: computedLogoSize,
-                width: computedLogoSize,
-                excavate: true,
-              } : undefined}
-            />
-            {config.logoUrl && config.logoBackground && (
-              <circle cx="512" cy="512" r={(computedLogoSize / 2) + 12} fill="#ffffff" opacity="0.95" />
-            )}
-          </svg>
+          <rect x="-8" y="-8" width="216" height="216" rx="16" fill={config.bgColor || '#ffffff'} stroke={frameColor} strokeWidth="2" />
+          <RenderFramedOrPlainQR
+            config={config}
+            activeFrame={activeFrame}
+            frameColor={frameColor}
+            frameTextColor={frameTextColor}
+            frameText={frameText}
+            frameFontFamily={frameFontFamily}
+            computedLogoSize={computedLogoSize}
+            width={200}
+            height={200}
+          />
         </g>
 
         {/* Steps / Instructions Box */}
@@ -621,7 +747,7 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
     );
   }
 
-  // 2. HORIZONTAL CARD (520 x 260) - Left or Right
+  // 2. HORIZONTAL CARD (530 x 260) - Left or Right
   if (position === 'right' || position === 'left') {
     const isRight = position === 'right';
     const qrTranslateX = isRight ? 24 : 290;
@@ -642,28 +768,20 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
         <rect x="0" y="0" width="530" height="260" rx="20" fill={cardBg} />
         <rect x="4" y="4" width="522" height="252" rx="16" fill="none" stroke={frameColor} strokeWidth="3" />
 
-        {/* QR Section */}
+        {/* QR Section with Active Frame */}
         <g transform={`translate(${qrTranslateX}, 25)`}>
-          <rect x="0" y="0" width="210" height="210" rx="14" fill="#ffffff" stroke={frameColor} strokeWidth="2.5" />
-          <svg x="8" y="8" width="194" height="194" viewBox="0 0 1024 1024">
-            <QRCodeSVG
-              value={config.value || 'https://neoqr-studio.vercel.app'}
-              size={1024}
-              level={config.level || 'H'}
-              fgColor={config.fgColor}
-              bgColor="transparent"
-              marginSize={config.includeMargin ? 2 : 0}
-              imageSettings={config.logoUrl ? {
-                src: config.logoUrl,
-                height: computedLogoSize,
-                width: computedLogoSize,
-                excavate: true,
-              } : undefined}
-            />
-            {config.logoUrl && config.logoBackground && (
-              <circle cx="512" cy="512" r={(computedLogoSize / 2) + 12} fill="#ffffff" opacity="0.95" />
-            )}
-          </svg>
+          <rect x="-4" y="-4" width="218" height="218" rx="14" fill={config.bgColor || '#ffffff'} stroke={frameColor} strokeWidth="2" />
+          <RenderFramedOrPlainQR
+            config={config}
+            activeFrame={activeFrame}
+            frameColor={frameColor}
+            frameTextColor={frameTextColor}
+            frameText={frameText}
+            frameFontFamily={frameFontFamily}
+            computedLogoSize={computedLogoSize}
+            width={210}
+            height={210}
+          />
         </g>
 
         {/* Text Section */}
@@ -682,7 +800,7 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
           </text>
 
           {/* Subtitle with wrapping */}
-          <text x="0" y={48 + (titleLines.length * 20) + 4} fill={cardText} fontSize="10" opacity="0.8" fontFamily={frameFontFamily}>
+          <text x="0" y="48 + (titleLines.length * 20) + 4" fill={cardText} fontSize="10" opacity="0.8" fontFamily={frameFontFamily}>
             {subtitleLines.map((line, idx) => (
               <tspan key={idx} x="0" dy={idx === 0 ? 0 : 13}>{line}</tspan>
             ))}
@@ -735,28 +853,20 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
       <rect x="0" y="0" width="320" height="440" rx="20" fill={cardBg} />
       <rect x="4" y="4" width="312" height="432" rx="16" fill="none" stroke={frameColor} strokeWidth="3" />
 
-      {/* QR Code Container */}
+      {/* QR Code Container with Active Frame */}
       <g transform={`translate(55, ${qrY})`}>
-        <rect x="0" y="0" width="210" height="210" rx="14" fill="#ffffff" stroke={frameColor} strokeWidth="2" />
-        <svg x="8" y="8" width="194" height="194" viewBox="0 0 1024 1024">
-          <QRCodeSVG
-            value={config.value || 'https://neoqr-studio.vercel.app'}
-            size={1024}
-            level={config.level || 'H'}
-            fgColor={config.fgColor}
-            bgColor="transparent"
-            marginSize={config.includeMargin ? 2 : 0}
-            imageSettings={config.logoUrl ? {
-              src: config.logoUrl,
-              height: computedLogoSize,
-              width: computedLogoSize,
-              excavate: true,
-            } : undefined}
-          />
-          {config.logoUrl && config.logoBackground && (
-            <circle cx="512" cy="512" r={(computedLogoSize / 2) + 12} fill="#ffffff" opacity="0.95" />
-          )}
-        </svg>
+        <rect x="-4" y="-4" width="218" height="218" rx="14" fill={config.bgColor || '#ffffff'} stroke={frameColor} strokeWidth="2" />
+        <RenderFramedOrPlainQR
+          config={config}
+          activeFrame={activeFrame}
+          frameColor={frameColor}
+          frameTextColor={frameTextColor}
+          frameText={frameText}
+          frameFontFamily={frameFontFamily}
+          computedLogoSize={computedLogoSize}
+          width={210}
+          height={210}
+        />
       </g>
 
       {/* Text Area */}

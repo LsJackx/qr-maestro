@@ -12,6 +12,7 @@ import {
   query, 
   where, 
   orderBy, 
+  limit,
   onSnapshot 
 } from "firebase/firestore";
 import { 
@@ -309,6 +310,87 @@ export const subscribeToAnalytics = (qrId: string, callback: (data: ScanEvent[])
   } catch (error) {
     console.error("Error subscribing to analytics:", error);
     return () => {};
+  }
+};
+
+/**
+ * Subscribes to live incoming scans across all QRs owned by the user.
+ * Invokes onNewScan whenever a scan with timestamp after listenerStartTime occurs.
+ */
+export const subscribeToMultipleQRScans = (
+  qrs: { shortId?: string; id?: string; title?: string }[],
+  listenerStartTime: number,
+  onNewScan: (scan: ScanEvent & { qrTitle?: string }) => void
+) => {
+  const unsubscribers: (() => void)[] = [];
+  const processedScanIds = new Set<string>();
+
+  qrs.forEach((item) => {
+    const qrId = item.shortId || item.id;
+    if (!qrId) return;
+
+    try {
+      const scansRef = collection(db, COLLECTION_NAME, qrId, 'scans');
+      const q = query(scansRef, orderBy('timestamp', 'desc'), limit(5));
+
+      const unsub = onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data() as ScanEvent;
+            const scanId = change.doc.id;
+
+            // Only trigger for scans that occurred after connection started or within the last 15 seconds
+            if (!processedScanIds.has(scanId) && (data.timestamp >= listenerStartTime - 15000)) {
+              processedScanIds.add(scanId);
+              onNewScan({
+                ...data,
+                id: scanId,
+                qrTitle: item.title || 'Código QR'
+              });
+            }
+          }
+        });
+      }, (err) => {
+        console.warn(`Scan listener error for ${qrId}:`, err);
+      });
+
+      unsubscribers.push(unsub);
+    } catch (e) {
+      console.error("Error listening to scans for QR:", qrId, e);
+    }
+  });
+
+  return () => {
+    unsubscribers.forEach(u => u());
+  };
+};
+
+/**
+ * Subtle Web Audio chime for scan notifications (no external MP3 required)
+ */
+export const playScanNotificationSound = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+    
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.36);
+  } catch {
+    // Audio context may be blocked before first user gesture
   }
 };
 

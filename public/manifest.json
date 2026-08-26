@@ -1,0 +1,35 @@
+{
+  "name": "QRMaestro - Generador de Códigos QR",
+  "short_name": "QRMaestro",
+  "description": "Generador profesional de Códigos QR estáticos y dinámicos con marcos, landing pages y analíticas.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "productivity", "business"],
+  "shortcuts": [
+    {
+      "name": "Crear Nuevo QR",
+      "short_name": "Nuevo QR",
+      "description": "Genera un nuevo código QR al instante",
+      "url": "/?action=create",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    }
+  ]
+}

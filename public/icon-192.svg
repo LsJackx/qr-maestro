@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="qrGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="42" fill="url(#qrGrad)" />
+  
+  <!-- Outer Finder 1 (Top-Left) -->
+  <rect x="36" y="36" width="44" height="44" rx="10" fill="none" stroke="#ffffff" stroke-width="8" />
+  <rect x="48" y="48" width="20" height="20" rx="4" fill="#ffffff" />
+  
+  <!-- Outer Finder 2 (Top-Right) -->
+  <rect x="112" y="36" width="44" height="44" rx="10" fill="none" stroke="#ffffff" stroke-width="8" />
+  <rect x="124" y="48" width="20" height="20" rx="4" fill="#ffffff" />
+  
+  <!-- Outer Finder 3 (Bottom-Left) -->
+  <rect x="36" y="112" width="44" height="44" rx="10" fill="none" stroke="#ffffff" stroke-width="8" />
+  <rect x="48" y="124" width="20" height="20" rx="4" fill="#ffffff" />
+  
+  <!-- Data Blocks -->
+  <rect x="112" y="112" width="18" height="18" rx="4" fill="#ffffff" />
+  <rect x="138" y="112" width="18" height="18" rx="4" fill="#ffffff" opacity="0.85" />
+  <rect x="112" y="138" width="18" height="18" rx="4" fill="#ffffff" opacity="0.85" />
+  <rect x="138" y="138" width="18" height="18" rx="4" fill="#38bdf8" />
+  
+  <!-- Central Sparkle / Star dot -->
+  <circle cx="96" cy="96" r="7" fill="#38bdf8" />
+</svg>

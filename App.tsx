@@ -41,13 +41,17 @@ import {
   Sliders,
   MessageCircle,
   Instagram,
-  FileEdit
+  FileEdit,
+  Bell,
+  BellRing
 } from 'lucide-react';
 import { HistoryPanel } from './components/HistoryPanel';
 import { HeroSection } from './components/HeroSection';
 import { PricingPlans } from './components/PricingPlans';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
-import { QRCodeConfig, HistoryItem, ContentType, QRFrame, User, FrameFont } from './types';
+import { ScanNotificationToast } from './components/ScanNotificationToast';
+import { PWAInstallModal } from './components/PWAInstallPrompt';
+import { QRCodeConfig, HistoryItem, ContentType, QRFrame, User, FrameFont, ScanEvent } from './types';
 import { downloadPNG, downloadSVG } from './utils/download';
 import { AdPlaceholder } from './components/AdPlaceholder';
 import { AuthModal } from './components/AuthModal';
@@ -60,6 +64,8 @@ import {
   saveQRToFirebase, 
   deleteQRFromFirebase,
   subscribeToUserQRs,
+  subscribeToMultipleQRScans,
+  playScanNotificationSound,
   auth, 
   logoutFirebase, 
   getFirestoreErrorMessage 
@@ -156,6 +162,86 @@ export default function App() {
 
   // Random Short ID for session
   const [shortId, setShortId] = useState(() => Math.random().toString(36).substring(2, 9));
+
+  // PWA & Notification States
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [pwaModalOpen, setPwaModalOpen] = useState(false);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+  const [liveScanToast, setLiveScanToast] = useState<(ScanEvent & { qrTitle?: string }) | null>(null);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>(() => {
+    return typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default';
+  });
+
+  // Listen to PWA install availability
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setIsAppInstalled(true);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsAppInstalled(true);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  // Real-time scan notifications for all QRs in the user's history
+  useEffect(() => {
+    if (history.length === 0) return;
+    const startTime = Date.now();
+
+    const unsubscribe = subscribeToMultipleQRScans(history, startTime, (scan) => {
+      playScanNotificationSound();
+      setLiveScanToast(scan);
+
+      // Trigger Web / Browser native notification if permission is granted
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          const title = `¡QR Escaneado: ${scan.qrTitle || 'Código QR'}!`;
+          const body = `Escaneado desde ${scan.city && scan.city !== 'Desconocido' ? scan.city + ', ' : ''}${scan.country || 'Ubicación'} (${scan.device || 'Dispositivo'})`;
+          new Notification(title, {
+            body,
+            icon: '/icon-192.svg'
+          });
+        } catch (e) {
+          console.warn('Native notification display error:', e);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [history]);
+
+  const handleRequestPush = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const perm = await Notification.requestPermission();
+        setPushPermission(perm);
+        if (perm === 'granted') {
+          new Notification('¡Notificaciones de Escaneo Activadas!', {
+            body: 'Te avisaremos al instante cada vez que alguien escanee cualquiera de tus códigos QR.',
+            icon: '/icon-192.svg'
+          });
+        }
+      } catch (e) {
+        console.error('Error requesting notification permission:', e);
+      }
+    } else {
+      alert('Tu navegador no soporta notificaciones web.');
+    }
+  };
 
   // Handle Theme
   useEffect(() => {
@@ -595,6 +681,16 @@ export default function App() {
             </div>
             
             <div className="flex items-center gap-4">
+              {/* PWA Install in Landing */}
+              <button 
+                onClick={() => setPwaModalOpen(true)}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors"
+                title="Instalar QRMaestro como Aplicación Web (PWA)"
+              >
+                <Smartphone className="w-4 h-4 text-indigo-500" />
+                <span>Instalar App</span>
+              </button>
+
               <button onClick={() => setDarkMode(!darkMode)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
@@ -626,6 +722,33 @@ export default function App() {
            <AdPlaceholder format="horizontal" className="h-32" />
         </div>
         <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+        <PWAInstallModal 
+          isOpen={pwaModalOpen} 
+          onClose={() => setPwaModalOpen(false)} 
+          deferredPrompt={deferredPrompt}
+          onInstalled={() => {
+            setIsAppInstalled(true);
+            setDeferredPrompt(null);
+          }}
+        />
+        {liveScanToast && (
+          <ScanNotificationToast
+            scan={liveScanToast}
+            onClose={() => setLiveScanToast(null)}
+            onOpenAnalytics={(qrId, title) => {
+              setView('GENERATOR');
+              const item = history.find(h => h.shortId === qrId || h.id === qrId) || {
+                ...config,
+                id: qrId,
+                title: title || 'Código QR',
+                createdAt: Date.now()
+              };
+              setAnalyticsItem(item as any);
+            }}
+            pushEnabled={pushPermission === 'granted'}
+            onRequestPush={handleRequestPush}
+          />
+        )}
       </div>
     );
   }
@@ -673,6 +796,36 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* NOTIFICATION TOGGLE / STATUS */}
+            <button
+              onClick={handleRequestPush}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                pushPermission === 'granted'
+                  ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                  : 'bg-gray-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+              }`}
+              title={pushPermission === 'granted' ? 'Notificaciones de escaneo en tiempo real activas' : 'Activar notificaciones cuando alguien escanee tus QR'}
+            >
+              {pushPermission === 'granted' ? (
+                <BellRing className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+              ) : (
+                <Bell className="w-4 h-4" />
+              )}
+              <span className="hidden xl:inline">
+                {pushPermission === 'granted' ? 'Avisos Activos' : 'Avisos de Escaneo'}
+              </span>
+            </button>
+
+            {/* PWA INSTALL BUTTON */}
+            <button
+              onClick={() => setPwaModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition-colors"
+              title="Instalar QRMaestro como App en este dispositivo"
+            >
+              <Smartphone className="w-4 h-4 text-indigo-500" />
+              <span className="hidden sm:inline">Instalar App</span>
+            </button>
+
             {/* ESTADÍSTICAS BUTTON IN TOP MENU */}
             <button 
               onClick={openAnalyticsForCurrent}
@@ -1602,6 +1755,36 @@ export default function App() {
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       {pricingModalOpen && <PricingPlans onClose={() => setPricingModalOpen(false)} onSubscribe={() => setAuthModalOpen(true)} />}
       {analyticsItem && <AnalyticsPanel qr={analyticsItem} onClose={() => setAnalyticsItem(null)} />}
+      
+      {/* PWA INSTALL MODAL */}
+      <PWAInstallModal 
+        isOpen={pwaModalOpen} 
+        onClose={() => setPwaModalOpen(false)} 
+        deferredPrompt={deferredPrompt}
+        onInstalled={() => {
+          setIsAppInstalled(true);
+          setDeferredPrompt(null);
+        }}
+      />
+
+      {/* LIVE SCAN NOTIFICATION TOAST */}
+      {liveScanToast && (
+        <ScanNotificationToast
+          scan={liveScanToast}
+          onClose={() => setLiveScanToast(null)}
+          onOpenAnalytics={(qrId, title) => {
+            const item = history.find(h => h.shortId === qrId || h.id === qrId) || {
+              ...config,
+              id: qrId,
+              title: title || 'Código QR',
+              createdAt: Date.now()
+            };
+            setAnalyticsItem(item as any);
+          }}
+          pushEnabled={pushPermission === 'granted'}
+          onRequestPush={handleRequestPush}
+        />
+      )}
     </div>
   );
 }
