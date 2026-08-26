@@ -55,7 +55,15 @@ import { PhonePreview } from './components/PhonePreview';
 import { LandingViewer } from './components/LandingViewer';
 import { QRRenderer, FrameThumbnail } from './components/QRRenderer';
 import { FRAMES, FONT_FAMILIES } from './components/framesData';
-import { getQRFromFirebase, saveQRToFirebase, auth, logoutFirebase, getFirestoreErrorMessage } from './services/firebase';
+import { 
+  getQRFromFirebase, 
+  saveQRToFirebase, 
+  deleteQRFromFirebase,
+  subscribeToUserQRs,
+  auth, 
+  logoutFirebase, 
+  getFirestoreErrorMessage 
+} from './services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 // DEFAULT CONFIG
@@ -175,6 +183,42 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Real-time Firestore sync & user history subscription
+  useEffect(() => {
+    if (user) {
+      // 1. Subscribe to real-time changes in user's Firebase collection
+      const unsubscribe = subscribeToUserQRs(user.id, (cloudItems) => {
+        if (cloudItems) {
+          setHistory(prev => {
+            // Merge cloud items with any local items that haven't been synced yet
+            const cloudIds = new Set(cloudItems.map(c => c.shortId || c.id));
+            const pendingLocal = prev.filter(p => !cloudIds.has(p.shortId || p.id));
+            const merged = [...cloudItems, ...pendingLocal];
+            localStorage.setItem('qr-history', JSON.stringify(merged));
+            return merged;
+          });
+        }
+      });
+
+      // 2. Automatically backup any existing local QR codes to Firebase for this user
+      const savedHistory = localStorage.getItem('qr-history');
+      if (savedHistory) {
+        try {
+          const localList: HistoryItem[] = JSON.parse(savedHistory);
+          localList.forEach(item => {
+            if (!item.ownerId || item.ownerId === 'anonymous') {
+              saveQRToFirebase(item, user.id).catch(e => console.warn("Auto-syncing local QR to Firebase:", e));
+            }
+          });
+        } catch (e) {
+          console.error("Error migrating local history to Firebase:", e);
+        }
+      }
+
+      return () => unsubscribe();
+    }
+  }, [user]);
+
   // Initial Load Routing Logic
   useEffect(() => {
     const savedHistory = localStorage.getItem('qr-history');
@@ -232,10 +276,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (history.length > 0) {
       localStorage.setItem('qr-history', JSON.stringify(history));
     }
-  }, [history, user]);
+  }, [history]);
 
   const handleLogout = async () => {
     await logoutFirebase();
@@ -380,25 +424,30 @@ export default function App() {
     setIsSaving(true);
 
     try {
-      await saveQRToFirebase({
+      const savedDocId = await saveQRToFirebase({
          ...config,
          ownerId: user.id
-      });
+      }, user.id);
 
+      const finalId = savedDocId || config.shortId || shortId;
       const newHistoryItem: HistoryItem = {
         ...config,
-        id: config.shortId!, 
+        id: finalId,
+        shortId: finalId,
+        ownerId: user.id,
         createdAt: Date.now(),
         title: config.isDynamic ? `[Smart] ${dynTitle || 'QR Dinámico'}` : (config.contentType === 'URL' ? urlInput : config.contentType),
         wifiSsid, wifiPass, locationLat: geoLat, locationLon: geoLon, vcardName, vcardPhone, vcardEmail
       };
       
       setHistory(prev => {
-        const filtered = prev.filter(h => h.shortId !== newHistoryItem.shortId);
-        return [newHistoryItem, ...filtered];
+        const filtered = prev.filter(h => h.shortId !== newHistoryItem.shortId && h.id !== newHistoryItem.id);
+        const updated = [newHistoryItem, ...filtered];
+        localStorage.setItem('qr-history', JSON.stringify(updated));
+        return updated;
       });
       
-      alert("¡Guardado exitosamente en la nube!");
+      alert("¡Guardado exitosamente en Firebase Cloud!");
 
     } catch (error: any) {
       console.error(error);
@@ -442,29 +491,33 @@ export default function App() {
     }
   };
 
-  const handleDeleteHistory = (id: string) => {
-    setHistory(prev => prev.filter(item => item.id !== id));
+  const handleDeleteHistory = async (id: string) => {
+    setHistory(prev => prev.filter(item => item.id !== id && item.shortId !== id));
+    try {
+      await deleteQRFromFirebase(id);
+    } catch (e) {
+      console.warn("Could not delete from Firebase cloud:", e);
+    }
   };
 
   const handleDownload = (format: 'PNG' | 'SVG') => {
-    // If dynamic, ensure it's saved in Firebase immediately
-    if (config.isDynamic) {
-      saveQRToFirebase(config).catch(e => console.warn("Failed immediate sync on download:", e));
-      
-      const newHistoryItem: HistoryItem = {
-        ...config,
-        id: config.shortId || shortId, 
-        createdAt: Date.now(),
-        title: `[Smart] ${dynTitle || 'QR Dinámico'}`,
-        wifiSsid, wifiPass, locationLat: geoLat, locationLon: geoLon, vcardName, vcardPhone, vcardEmail
-      };
-      setHistory(prev => {
-        const filtered = prev.filter(h => h.shortId !== newHistoryItem.shortId);
-        const updated = [newHistoryItem, ...filtered];
-        localStorage.setItem('qr-history', JSON.stringify(updated));
-        return updated;
-      });
-    }
+    // Ensure it's saved in Firebase immediately
+    saveQRToFirebase(config, user?.id).catch(e => console.warn("Failed immediate sync on download:", e));
+    
+    const newHistoryItem: HistoryItem = {
+      ...config,
+      id: config.shortId || shortId, 
+      ownerId: user?.id,
+      createdAt: Date.now(),
+      title: config.isDynamic ? `[Smart] ${dynTitle || 'QR Dinámico'}` : (config.contentType === 'URL' ? urlInput : config.contentType),
+      wifiSsid, wifiPass, locationLat: geoLat, locationLon: geoLon, vcardName, vcardPhone, vcardEmail
+    };
+    setHistory(prev => {
+      const filtered = prev.filter(h => h.shortId !== newHistoryItem.shortId && h.id !== newHistoryItem.id);
+      const updated = [newHistoryItem, ...filtered];
+      localStorage.setItem('qr-history', JSON.stringify(updated));
+      return updated;
+    });
 
     if (svgRef.current) {
       if (format === 'PNG') {

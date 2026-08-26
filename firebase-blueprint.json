@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "QRCode": {
+      "title": "QR Code",
+      "description": "Stores generated QR codes and their configurations",
+      "type": "object",
+      "properties": {
+        "shortId": { "type": "string", "description": "Unique identifier / slug for dynamic QR" },
+        "userId": { "type": "string", "description": "Owner UID if authenticated" },
+        "title": { "type": "string", "description": "Display title for the QR code" },
+        "contentType": { "type": "string", "description": "Type of QR (URL, WIFI, VCARD, etc.)" },
+        "targetContent": { "type": "string", "description": "Destination payload or target URL" },
+        "value": { "type": "string", "description": "Full QR code encoded value" },
+        "isDynamic": { "type": "boolean", "description": "Whether the QR is dynamic/smart" },
+        "dynamicTitle": { "type": "string" },
+        "dynamicDescription": { "type": "string" },
+        "dynamicButtonText": { "type": "string" },
+        "landingLogoUrl": { "type": "string" },
+        "landingThemeColor": { "type": "string" },
+        "landingBgColor": { "type": "string" },
+        "landingExtraNotes": { "type": "string" },
+        "landingWhatsapp": { "type": "string" },
+        "landingInstagram": { "type": "string" },
+        "landingPhone": { "type": "string" },
+        "landingWebsite": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["shortId", "contentType", "createdAt"]
+    },
+    "ScanEvent": {
+      "title": "Scan Event",
+      "description": "Analytics record when a QR code is scanned",
+      "type": "object",
+      "properties": {
+        "qrId": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "os": { "type": "string" },
+        "browser": { "type": "string" },
+        "device": { "type": "string" },
+        "country": { "type": "string" },
+        "city": { "type": "string" }
+      },
+      "required": ["qrId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/neoqr_codes/{qrId}": {
+      "schema": "QRCode",
+      "description": "Collection of QR codes"
+    },
+    "/neoqr_codes/{qrId}/scans/{scanId}": {
+      "schema": "ScanEvent",
+      "description": "Scans subcollection for analytics"
+    }
+  }
+}

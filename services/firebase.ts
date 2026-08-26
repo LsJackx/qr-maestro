@@ -1,36 +1,50 @@
 
-import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, getDocs, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  deleteDoc, 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot 
+} from "firebase/firestore";
 import { 
   getAuth, 
   GoogleAuthProvider, 
   signInWithPopup, 
   createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
-  AuthError
+  signInWithEmailAndPassword, 
+  signOut, 
+  updateProfile 
 } from "firebase/auth";
-import { QRCodeConfig, ScanEvent } from "../types";
+import { QRCodeConfig, HistoryItem, ScanEvent } from "../types";
+import configJson from "../firebase-applet-config.json";
 
-// Configuration checks are handled by the environment variables or local fallback
+// Use provisioned Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBpsQwDnXakMj_yGXxqgANbcEUBJrLSKQI",
-  authDomain: "marketa-pjbwh.firebaseapp.com",
-  projectId: "marketa-pjbwh",
-  storageBucket: "marketa-pjbwh.firebasestorage.app",
-  messagingSenderId: "260172136725",
-  appId: "1:260172136725:web:867fba66fa0c8627c5691c"
+  apiKey: configJson.apiKey,
+  authDomain: configJson.authDomain,
+  projectId: configJson.projectId,
+  storageBucket: configJson.storageBucket,
+  messagingSenderId: configJson.messagingSenderId,
+  appId: configJson.appId
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Initialize Firebase App and Firestore Database instance
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+export const db = (configJson.firestoreDatabaseId && configJson.firestoreDatabaseId !== "(default)")
+  ? getFirestore(app, configJson.firestoreDatabaseId)
+  : getFirestore(app);
 export const auth = getAuth(app);
 
-// Collection name constant
+// Collection name constants
 const COLLECTION_NAME = "neoqr_codes";
-const SCANS_COLLECTION = "neoqr_scans";
 
 // --- AUTHENTICATION SERVICES ---
 
@@ -48,7 +62,6 @@ export const loginWithGoogle = async () => {
 export const registerWithEmail = async (email: string, pass: string, name: string) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-    // Update Display Name immediately
     await updateProfile(userCredential.user, { displayName: name });
     return userCredential.user;
   } catch (error) {
@@ -71,11 +84,8 @@ export const logoutFirebase = async () => {
   await signOut(auth);
 };
 
-/**
- * Traduce errores de Firebase a Español amigable
- */
 export const getAuthErrorMessage = (error: any): string => {
-  const code = error.code || "";
+  const code = error?.code || "";
   switch (code) {
     case 'auth/email-already-in-use': return 'Este correo ya está registrado.';
     case 'auth/invalid-email': return 'El correo electrónico no es válido.';
@@ -84,13 +94,13 @@ export const getAuthErrorMessage = (error: any): string => {
     case 'auth/wrong-password': return 'Contraseña incorrecta.';
     case 'auth/popup-closed-by-user': return 'Se canceló el inicio de sesión.';
     case 'auth/invalid-credential': return 'Credenciales inválidas.';
-    case 'auth/unauthorized-domain': return 'Dominio no autorizado. Agrega este dominio en Firebase Console > Auth > Settings.';
-    case 'auth/operation-not-allowed': return 'El método de acceso no está habilitado en Firebase Console.';
-    default: return `Error de acceso: ${code}`;
+    case 'auth/unauthorized-domain': return 'Dominio no autorizado en Firebase Auth.';
+    case 'auth/operation-not-allowed': return 'El método de acceso no está habilitado.';
+    default: return `Error de autenticación: ${code || error?.message || 'Desconocido'}`;
   }
 };
 
-// --- FIRESTORE SERVICES ---
+// --- FIRESTORE PERSISTENCE SERVICES ---
 
 const cleanData = (data: any) => {
   return Object.entries(data).reduce((acc, [key, value]) => {
@@ -101,25 +111,33 @@ const cleanData = (data: any) => {
   }, {} as any);
 };
 
-export const saveQRToFirebase = async (config: QRCodeConfig) => {
-  const docId = config.shortId || (config.isDynamic ? config.shortId : crypto.randomUUID());
-  if (!docId) throw new Error("Error interno: No ID generation possible");
+/**
+ * Saves a QR code to Firestore (both dynamic and static QR codes).
+ */
+export const saveQRToFirebase = async (config: QRCodeConfig | HistoryItem, ownerId?: string): Promise<string> => {
+  const docId = config.shortId || (config as any).id || crypto.randomUUID();
   
   const dataToSave = cleanData({
     ...config,
-    shortId: docId, 
+    shortId: docId,
+    id: docId,
+    ownerId: ownerId || config.ownerId || auth.currentUser?.uid || 'anonymous',
     updatedAt: Date.now(),
+    createdAt: config.createdAt || Date.now()
   });
 
   try {
     await setDoc(doc(db, COLLECTION_NAME, docId), dataToSave, { merge: true });
-    return true;
+    return docId;
   } catch (error) {
     console.error("Error saving QR to Firebase:", error);
     throw error;
   }
 };
 
+/**
+ * Fetches a single QR by shortId or doc ID from Firestore.
+ */
 export const getQRFromFirebase = async (shortId: string): Promise<QRCodeConfig | null> => {
   try {
     if (!shortId) return null;
@@ -128,24 +146,81 @@ export const getQRFromFirebase = async (shortId: string): Promise<QRCodeConfig |
 
     if (docSnap.exists()) {
       return docSnap.data() as QRCodeConfig;
-    } else {
-      return null;
     }
-  } catch (error) {
-    console.error("Error fetching QR:", error);
     return null;
+  } catch (error) {
+    console.error("Error fetching QR from Firebase:", error);
+    return null;
+  }
+};
+
+/**
+ * Deletes a QR code from Firestore.
+ */
+export const deleteQRFromFirebase = async (shortId: string): Promise<boolean> => {
+  try {
+    if (!shortId) return false;
+    const docRef = doc(db, COLLECTION_NAME, shortId);
+    await deleteDoc(docRef);
+    return true;
+  } catch (error) {
+    console.error("Error deleting QR from Firebase:", error);
+    return false;
+  }
+};
+
+/**
+ * Fetches all QR codes belonging to a specific user.
+ */
+export const getUserQRsFromFirebase = async (userId: string): Promise<HistoryItem[]> => {
+  try {
+    if (!userId) return [];
+    const q = query(
+      collection(db, COLLECTION_NAME), 
+      where('ownerId', '==', userId), 
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as HistoryItem));
+  } catch (error) {
+    console.error("Error getting user QRs:", error);
+    return [];
+  }
+};
+
+/**
+ * Subscribes to real-time updates for a user's QR codes.
+ */
+export const subscribeToUserQRs = (userId: string, callback: (items: HistoryItem[]) => void) => {
+  try {
+    if (!userId) {
+      callback([]);
+      return () => {};
+    }
+    const q = query(
+      collection(db, COLLECTION_NAME), 
+      where('ownerId', '==', userId), 
+      orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as HistoryItem));
+      callback(items);
+    }, (err) => {
+      console.warn("Snapshot listener fallback:", err);
+    });
+  } catch (error) {
+    console.error("Error subscribing to user QRs:", error);
+    return () => {};
   }
 };
 
 // --- ANALYTICS SERVICES ---
 
 /**
- * Records a scan event for a specific QR code
+ * Records a scan event in Firestore subcollection
  */
 export const recordScan = async (qrId: string) => {
-  console.log("[DEBUG] Attempting to record scan for ID:", qrId);
   try {
-    // Detect User Agent Info
     const ua = navigator.userAgent;
     let os = 'Unknown';
     if (ua.indexOf("Win") !== -1) os = "Windows";
@@ -158,12 +233,10 @@ export const recordScan = async (qrId: string) => {
     if (/Mobi|Android/i.test(ua)) device = 'Mobile';
     if (/Tablet|iPad/i.test(ua)) device = 'Tablet';
 
-    // Determine location using free GeoIP lookup or browser timezone fallback
     let country = 'Desconocido';
     let city = 'Desconocido';
 
     try {
-      // Fast non-blocking IP location lookup
       const geoRes = await fetch('https://ipwho.is/', { signal: AbortSignal.timeout(2500) });
       if (geoRes.ok) {
         const geoJson = await geoRes.json();
@@ -173,7 +246,6 @@ export const recordScan = async (qrId: string) => {
         }
       }
     } catch {
-      // Fallback to timezone heuristics
       try {
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         if (tz) {
@@ -196,27 +268,22 @@ export const recordScan = async (qrId: string) => {
       city
     };
 
-    // Save to a subcollection 'scans' inside the QR document for organization
-    // Path: neoqr_codes/{qrId}/scans/{scanDocId}
     const scansRef = collection(db, COLLECTION_NAME, qrId, 'scans');
-    const res = await addDoc(scansRef, scanData);
-    console.log("[DEBUG] Scan recorded successfully for:", qrId, "Doc ID:", res.id);
+    await addDoc(scansRef, scanData);
   } catch (error) {
-    console.error("[DEBUG] Error recording scan:", error);
-    // Silent fail to not disrupt user experience
+    console.error("Error recording scan:", error);
   }
 };
 
 /**
- * Fetches analytics data for a specific QR (One-time fetch)
+ * Fetches analytics data for a QR code
  */
 export const getAnalytics = async (qrId: string): Promise<ScanEvent[]> => {
   try {
     const scansRef = collection(db, COLLECTION_NAME, qrId, 'scans');
     const q = query(scansRef, orderBy('timestamp', 'desc')); 
     const querySnapshot = await getDocs(q);
-    
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ScanEvent));
+    return querySnapshot.docs.map(d => ({ id: d.id, ...d.data() } as ScanEvent));
   } catch (error) {
     console.error("Error fetching analytics:", error);
     return [];
@@ -227,40 +294,37 @@ export const getAnalytics = async (qrId: string): Promise<ScanEvent[]> => {
  * Subscribes to real-time analytics updates
  */
 export const subscribeToAnalytics = (qrId: string, callback: (data: ScanEvent[]) => void) => {
-  console.log("[DEBUG] Subscribing to analytics for ID:", qrId);
   try {
     const scansRef = collection(db, COLLECTION_NAME, qrId, 'scans');
     const q = query(scansRef, orderBy('timestamp', 'desc'));
     
-    // Return the unsubscribe function
     return onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ScanEvent));
-      console.log(`[DEBUG] Realtime update received. Scans count: ${data.length}`);
+      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ScanEvent));
       callback(data);
     }, (error) => {
-      console.error("[DEBUG] Snapshot Listener Error:", error);
+      console.error("Analytics Snapshot Error:", error);
     });
   } catch (error) {
-    console.error("[DEBUG] Error subscribing to analytics:", error);
-    return () => {}; // Return empty unsubscribe function on error
+    console.error("Error subscribing to analytics:", error);
+    return () => {};
   }
 };
 
 const getBrowserName = (userAgent: string) => {
-  if(userAgent.includes("Firefox")) return "Firefox";
-  if(userAgent.includes("SamsungBrowser")) return "Samsung Internet";
-  if(userAgent.includes("Opera") || userAgent.includes("OPR")) return "Opera";
-  if(userAgent.includes("Trident")) return "Internet Explorer";
-  if(userAgent.includes("Edge")) return "Edge";
-  if(userAgent.includes("Chrome")) return "Chrome";
-  if(userAgent.includes("Safari")) return "Safari";
+  if (userAgent.includes("Firefox")) return "Firefox";
+  if (userAgent.includes("SamsungBrowser")) return "Samsung Internet";
+  if (userAgent.includes("Opera") || userAgent.includes("OPR")) return "Opera";
+  if (userAgent.includes("Trident")) return "Internet Explorer";
+  if (userAgent.includes("Edge")) return "Edge";
+  if (userAgent.includes("Chrome")) return "Chrome";
+  if (userAgent.includes("Safari")) return "Safari";
   return "Otros";
 };
 
 export const getFirestoreErrorMessage = (error: any): string => {
-  const code = error.code || "";
-  const msg = error.message || "";
-  if (code === 'permission-denied') return 'No tienes permiso. Verifica las Reglas en Firestore Console.';
-  if (msg.includes("undefined")) return 'Error interno: Datos corruptos (undefined).';
-  return `Error al guardar: ${msg}`;
+  const code = error?.code || "";
+  const msg = error?.message || "";
+  if (code === 'permission-denied') return 'No tienes permiso para realizar esta acción.';
+  if (msg.includes("undefined")) return 'Error de datos no válidos.';
+  return `Error en la base de datos: ${msg || code}`;
 };
