@@ -42,6 +42,18 @@
         "city": { "type": "string" }
       },
       "required": ["qrId", "timestamp"]
+    },
+    "ClickEvent": {
+      "title": "Click Event",
+      "description": "Conversion and CTR tracking event",
+      "type": "object",
+      "properties": {
+        "qrId": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "actionType": { "type": "string" },
+        "targetUrl": { "type": "string" }
+      },
+      "required": ["qrId", "timestamp"]
     }
   },
   "firestore": {
@@ -52,6 +64,10 @@
     "/neoqr_codes/{qrId}/scans/{scanId}": {
       "schema": "ScanEvent",
       "description": "Scans subcollection for analytics"
+    },
+    "/neoqr_codes/{qrId}/clicks/{clickId}": {
+      "schema": "ClickEvent",
+      "description": "Clicks and CTR conversions subcollection"
     }
   }
 }

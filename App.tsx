@@ -49,10 +49,11 @@ import { HistoryPanel } from './components/HistoryPanel';
 import { HeroSection } from './components/HeroSection';
 import { PricingPlans } from './components/PricingPlans';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
+import { AnalyticsPage } from './components/AnalyticsPage';
 import { ScanNotificationToast } from './components/ScanNotificationToast';
 import { PWAInstallModal } from './components/PWAInstallPrompt';
 import { QRCodeConfig, HistoryItem, ContentType, QRFrame, User, FrameFont, ScanEvent } from './types';
-import { downloadPNG, downloadSVG } from './utils/download';
+import { downloadPNG, downloadSVG, downloadEPS, downloadQRPDF } from './utils/download';
 import { AdPlaceholder } from './components/AdPlaceholder';
 import { AuthModal } from './components/AuthModal';
 import { PhonePreview } from './components/PhonePreview';
@@ -111,7 +112,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'CONTENT' | 'LANDING' | 'STYLE' | 'TEXT' | 'LOGO'>('CONTENT');
   
   // Navigation State
-  const [view, setView] = useState<'LANDING' | 'GENERATOR' | 'VIEWER' | 'LOADING'>(() => {
+  const [view, setView] = useState<'LANDING' | 'GENERATOR' | 'VIEWER' | 'LOADING' | 'ANALYTICS'>(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const hasParams = searchParams.has('id') || searchParams.has('q') || searchParams.has('d');
     return hasParams ? 'LOADING' : 'LANDING';
@@ -586,7 +587,7 @@ export default function App() {
     }
   };
 
-  const handleDownload = (format: 'PNG' | 'SVG') => {
+  const handleDownload = (format: 'PNG' | 'SVG' | 'EPS' | 'PDF') => {
     // Ensure it's saved in Firebase immediately
     saveQRToFirebase(config, user?.id).catch(e => console.warn("Failed immediate sync on download:", e));
     
@@ -606,10 +607,15 @@ export default function App() {
     });
 
     if (svgRef.current) {
+      const filename = `qrmaestro-${(config.title || dynTitle || 'qr').toLowerCase().replace(/[^a-z0-9]/g, '_')}-${Date.now()}`;
       if (format === 'PNG') {
-        downloadPNG(svgRef.current, `qrmaestro-${Date.now()}`, 2048);
-      } else {
-         downloadSVG(svgRef.current, `qrmaestro-${Date.now()}`);
+        downloadPNG(svgRef.current, filename, 2048);
+      } else if (format === 'SVG') {
+        downloadSVG(svgRef.current, filename);
+      } else if (format === 'EPS') {
+        downloadEPS(svgRef.current, filename);
+      } else if (format === 'PDF') {
+        downloadQRPDF(svgRef.current, filename, config);
       }
     }
   };
@@ -638,14 +644,15 @@ export default function App() {
   
   const openAnalyticsForCurrent = () => {
      if (!user) return setAuthModalOpen(true);
-     // Create a temporary HistoryItem to pass to the modal
      const item: HistoryItem = {
         ...config,
-        id: config.shortId!,
+        id: config.shortId || shortId,
+        shortId: config.shortId || shortId,
         title: dynTitle || 'Mi Código QR',
         createdAt: Date.now()
      };
      setAnalyticsItem(item);
+     setView('ANALYTICS');
   };
 
   // --- RENDER LOADING ---
@@ -657,6 +664,23 @@ export default function App() {
             <p className="text-slate-500 font-medium animate-pulse">Cargando QR...</p>
          </div>
       </div>
+    );
+  }
+
+  // --- RENDER ANALYTICS FULL PAGE ---
+  if (view === 'ANALYTICS') {
+    return (
+      <AnalyticsPage
+        initialQr={analyticsItem}
+        allQrs={history}
+        onBack={() => setView('GENERATOR')}
+        onSelectQrForEdit={(item) => {
+          handleHistorySelect(item);
+          setView('GENERATOR');
+        }}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode(!darkMode)}
+      />
     );
   }
 
@@ -736,14 +760,15 @@ export default function App() {
             scan={liveScanToast}
             onClose={() => setLiveScanToast(null)}
             onOpenAnalytics={(qrId, title) => {
-              setView('GENERATOR');
               const item = history.find(h => h.shortId === qrId || h.id === qrId) || {
                 ...config,
                 id: qrId,
+                shortId: qrId,
                 title: title || 'Código QR',
                 createdAt: Date.now()
               };
               setAnalyticsItem(item as any);
+              setView('ANALYTICS');
             }}
             pushEnabled={pushPermission === 'granted'}
             onRequestPush={handleRequestPush}
@@ -763,7 +788,10 @@ export default function App() {
         history={history}
         onSelect={handleHistorySelect}
         onDelete={handleDeleteHistory}
-        onAnalytics={(item) => setAnalyticsItem(item)}
+        onAnalytics={(item) => {
+          setAnalyticsItem(item && (item.id || item.shortId) ? item : null);
+          setView('ANALYTICS');
+        }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(!sidebarOpen)}
       />
@@ -1716,28 +1744,48 @@ export default function App() {
 
                   {/* Action Buttons */}
                   {(!config.isDynamic || previewTab === 'QR') && (
-                    <div className="flex flex-col w-full gap-2.5 mt-1 max-w-sm">
+                    <div className="flex flex-col w-full gap-2 mt-1 max-w-sm">
                       <button 
                         onClick={() => handleDownload('PNG')}
-                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 transition-all text-sm active:scale-98"
+                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 transition-all text-xs active:scale-98"
                       >
                         <Download className="w-4 h-4" />
-                        Descargar PNG en Alta Calidad
+                        Descargar PNG en Alta Calidad (2048px)
                       </button>
 
                       <div className="grid grid-cols-2 gap-2">
                         <button 
                           onClick={() => handleDownload('SVG')}
-                          className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-xs"
+                          className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-xs"
+                          title="Descargar Vector SVG escalable infinito"
                         >
-                          <ImageIcon className="w-3.5 h-3.5" /> Vector SVG
+                          <ImageIcon className="w-3.5 h-3.5 text-indigo-500" /> Vector SVG
                         </button>
+
+                        <button 
+                          onClick={() => handleDownload('EPS')}
+                          className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-xs"
+                          title="Descargar EPS PostScript para Illustrator y Diseño Gráfico"
+                        >
+                          <Layers className="w-3.5 h-3.5 text-purple-500" /> Vector EPS
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button 
+                          onClick={() => handleDownload('PDF')}
+                          className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-xs"
+                          title="Descargar Hoja PDF lista para imprimir con títulos e instrucciones"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-red-500" /> Hoja PDF
+                        </button>
+
                         <button 
                           onClick={handleSave}
                           disabled={isSaving}
-                          className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 text-xs"
+                          className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 text-xs"
                         >
-                          {isSaving ? <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> : <Save className="w-3.5 h-3.5 text-indigo-500" />}
+                          {isSaving ? <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> : <Save className="w-3.5 h-3.5 text-emerald-500" />}
                           {config.isDynamic ? 'Guardar Smart' : 'Guardar QR'}
                         </button>
                       </div>

@@ -74,6 +74,7 @@ export interface QRCodeConfig {
 
   // Dynamic QR / Smart QR Fields & Landing Customization
   isDynamic: boolean;
+  title?: string; // Título o nombre asignado al QR
   dynamicTitle?: string;
   dynamicDescription?: string;
   dynamicButtonText?: string;
@@ -96,6 +97,14 @@ export interface QRCodeConfig {
   scanLimit?: number; // Max number of scans
   passwordProtected?: boolean;
   password?: string;
+  
+  // Dynamic QR Modifications & Analytics tracking
+  editCount?: number;
+  editHistory?: {
+    timestamp: number;
+    targetContent?: string;
+    note?: string;
+  }[];
   
   // Metadata
   ownerId?: string;
@@ -120,6 +129,14 @@ export interface ScanEvent {
   city?: string;
 }
 
+export interface ClickEvent {
+  id?: string;
+  qrId: string;
+  timestamp: number;
+  actionType: 'primary_button' | 'whatsapp' | 'instagram' | 'phone' | 'website' | 'direct_redirect';
+  targetUrl?: string;
+}
+
 export enum GenerationStatus {
   IDLE = 'IDLE',
   LOADING = 'LOADING',
@@ -127,4 +144,4 @@ export enum GenerationStatus {
   ERROR = 'ERROR'
 }
 
-export type QRFormat = 'SVG' | 'PNG';
+export type QRFormat = 'SVG' | 'PNG' | 'PDF' | 'EPS';

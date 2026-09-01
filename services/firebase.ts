@@ -24,7 +24,7 @@ import {
   signOut, 
   updateProfile 
 } from "firebase/auth";
-import { QRCodeConfig, HistoryItem, ScanEvent } from "../types";
+import { QRCodeConfig, HistoryItem, ScanEvent, ClickEvent } from "../types";
 import configJson from "../firebase-applet-config.json";
 
 // Use environment variables if present (for Vercel / production), or fallback to firebase-applet-config.json
@@ -120,13 +120,44 @@ const cleanData = (data: any) => {
 export const saveQRToFirebase = async (config: QRCodeConfig | HistoryItem, ownerId?: string): Promise<string> => {
   const docId = config.shortId || (config as any).id || crypto.randomUUID();
   
+  // Check if document already exists to track edit counts and edit history
+  let existingEditCount = (config as any).editCount || 0;
+  let existingHistory = (config as any).editHistory || [];
+  let originalCreatedAt = config.createdAt || Date.now();
+
+  try {
+    const docRef = doc(db, COLLECTION_NAME, docId);
+    const existingSnap = await getDoc(docRef);
+    if (existingSnap.exists()) {
+      const existingData = existingSnap.data() as QRCodeConfig;
+      originalCreatedAt = existingData.createdAt || originalCreatedAt;
+      existingEditCount = (existingData.editCount || 0) + 1;
+      existingHistory = existingData.editHistory || [];
+      
+      // Append new edit record
+      existingHistory.unshift({
+        timestamp: Date.now(),
+        targetContent: config.targetContent || config.value || '',
+        note: `Modificación #${existingEditCount}: Destino actualizado a ${config.targetContent || config.value || 'nuevo contenido'}`
+      });
+      // Limit history to last 20 edits
+      if (existingHistory.length > 20) {
+        existingHistory = existingHistory.slice(0, 20);
+      }
+    }
+  } catch (e) {
+    console.warn("Could not check existing QR version:", e);
+  }
+
   const dataToSave = cleanData({
     ...config,
     shortId: docId,
     id: docId,
     ownerId: ownerId || config.ownerId || auth.currentUser?.uid || 'anonymous',
+    editCount: existingEditCount,
+    editHistory: existingHistory,
     updatedAt: Date.now(),
-    createdAt: config.createdAt || Date.now()
+    createdAt: originalCreatedAt
   });
 
   try {
@@ -403,6 +434,112 @@ const getBrowserName = (userAgent: string) => {
   if (userAgent.includes("Chrome")) return "Chrome";
   if (userAgent.includes("Safari")) return "Safari";
   return "Otros";
+};
+
+/**
+ * Records a click / conversion event on a dynamic QR landing or redirect
+ */
+export const recordClick = async (
+  qrId: string, 
+  actionType: 'primary_button' | 'whatsapp' | 'instagram' | 'phone' | 'website' | 'direct_redirect',
+  targetUrl?: string
+) => {
+  try {
+    if (!qrId) return;
+    const clicksRef = collection(db, COLLECTION_NAME, qrId, 'clicks');
+    const clickData: ClickEvent = {
+      qrId,
+      timestamp: Date.now(),
+      actionType,
+      targetUrl: targetUrl || ''
+    };
+    await addDoc(clicksRef, clickData);
+  } catch (error) {
+    console.warn("Error recording click event:", error);
+  }
+};
+
+/**
+ * Fetches click conversion events for a QR code
+ */
+export const getClicks = async (qrId: string): Promise<ClickEvent[]> => {
+  try {
+    const clicksRef = collection(db, COLLECTION_NAME, qrId, 'clicks');
+    const q = query(clicksRef, orderBy('timestamp', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ClickEvent));
+  } catch (error) {
+    console.error("Error fetching clicks:", error);
+    return [];
+  }
+};
+
+/**
+ * Subscribes to real-time click updates for a QR code
+ */
+export const subscribeToClicks = (qrId: string, callback: (data: ClickEvent[]) => void) => {
+  try {
+    const clicksRef = collection(db, COLLECTION_NAME, qrId, 'clicks');
+    const q = query(clicksRef, orderBy('timestamp', 'desc'));
+    
+    return onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ClickEvent));
+      callback(data);
+    }, (error) => {
+      console.warn("Clicks Snapshot Error:", error);
+    });
+  } catch (error) {
+    console.error("Error subscribing to clicks:", error);
+    return () => {};
+  }
+};
+
+/**
+ * Subscribes to real-time analytics and clicks for ALL QRs belonging to a user (Global Overview)
+ */
+export const subscribeToAllQRsAnalytics = (
+  qrs: HistoryItem[], 
+  callback: (data: { scansByQr: Record<string, ScanEvent[]>; clicksByQr: Record<string, ClickEvent[]> }) => void
+) => {
+  const unsubscribers: (() => void)[] = [];
+  const scansByQr: Record<string, ScanEvent[]> = {};
+  const clicksByQr: Record<string, ClickEvent[]> = {};
+
+  if (!qrs || qrs.length === 0) {
+    callback({ scansByQr: {}, clicksByQr: {} });
+    return () => {};
+  }
+
+  qrs.forEach((qr) => {
+    const qrId = qr.shortId || qr.id;
+    if (!qrId) return;
+
+    // Listen to scans
+    try {
+      const scansRef = collection(db, COLLECTION_NAME, qrId, 'scans');
+      const qScans = query(scansRef, orderBy('timestamp', 'desc'));
+      const unsubScans = onSnapshot(qScans, (snap) => {
+        scansByQr[qrId] = snap.docs.map(d => ({ id: d.id, ...d.data() } as ScanEvent));
+        callback({ scansByQr: { ...scansByQr }, clicksByQr: { ...clicksByQr } });
+      }, () => {});
+      unsubscribers.push(unsubScans);
+    } catch {}
+
+    // Listen to clicks
+    try {
+      const clicksRef = collection(db, COLLECTION_NAME, qrId, 'clicks');
+      const qClicks = query(clicksRef, orderBy('timestamp', 'desc'));
+      const unsubClicks = onSnapshot(qClicks, (snap) => {
+        clicksByQr[qrId] = snap.docs.map(d => ({ id: d.id, ...d.data() } as ClickEvent));
+        callback({ scansByQr: { ...scansByQr }, clicksByQr: { ...clicksByQr } });
+      }, () => {});
+      unsubscribers.push(unsubClicks);
+    } catch {}
+  });
+
+  return () => {
+    unsubscribers.forEach(u => u());
+  };
 };
 
 export const getFirestoreErrorMessage = (error: any): string => {

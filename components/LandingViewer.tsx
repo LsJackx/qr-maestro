@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ArrowRight, Lock, Wifi, Globe, MapPin, Video, CreditCard, CheckCircle2, ExternalLink, MessageCircle, Instagram, Phone, Share2 } from 'lucide-react';
 import { QRCodeConfig } from '../types';
-import { recordScan } from '../services/firebase';
+import { recordScan, recordClick } from '../services/firebase';
 
 interface LandingViewerProps {
   // Can be a base64 string, an object with fallback payload, or a full QRCodeConfig object
@@ -119,6 +119,11 @@ export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
   const handleAction = () => {
     if (!parsedConfig) return;
     
+    const qrId = parsedConfig.shortId || (typeof data === 'object' ? data.shortId : undefined);
+    if (qrId) {
+      recordClick(qrId, 'primary_button', parsedConfig.targetContent || parsedConfig.value || '');
+    }
+
     console.log("[Action] Button clicked. Config:", parsedConfig);
 
     // 1. Handle WiFi Special Case
@@ -289,6 +294,10 @@ export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
                           href={`https://wa.me/${parsedConfig.landingWhatsapp.replace(/[^0-9]/g, '')}`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() => {
+                            const qId = parsedConfig.shortId || (typeof data === 'object' ? data.shortId : undefined);
+                            if (qId) recordClick(qId, 'whatsapp', parsedConfig.landingWhatsapp);
+                          }}
                           className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs hover:bg-emerald-100 transition-colors"
                         >
                           <MessageCircle className="w-4 h-4 text-emerald-600" />
@@ -300,6 +309,10 @@ export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
                           href={parsedConfig.landingInstagram.startsWith('http') ? parsedConfig.landingInstagram : `https://instagram.com/${parsedConfig.landingInstagram.replace('@', '')}`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() => {
+                            const qId = parsedConfig.shortId || (typeof data === 'object' ? data.shortId : undefined);
+                            if (qId) recordClick(qId, 'instagram', parsedConfig.landingInstagram);
+                          }}
                           className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-pink-50 text-pink-700 font-bold text-xs hover:bg-pink-100 transition-colors"
                         >
                           <Instagram className="w-4 h-4 text-pink-600" />
@@ -309,6 +322,10 @@ export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
                       {parsedConfig.landingPhone && (
                         <a
                           href={`tel:${parsedConfig.landingPhone}`}
+                          onClick={() => {
+                            const qId = parsedConfig.shortId || (typeof data === 'object' ? data.shortId : undefined);
+                            if (qId) recordClick(qId, 'phone', parsedConfig.landingPhone);
+                          }}
                           className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs hover:bg-blue-100 transition-colors"
                         >
                           <Phone className="w-4 h-4 text-blue-600" />
@@ -320,6 +337,10 @@ export const LandingViewer: React.FC<LandingViewerProps> = ({ data }) => {
                           href={parsedConfig.landingWebsite.startsWith('http') ? parsedConfig.landingWebsite : `https://${parsedConfig.landingWebsite}`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() => {
+                            const qId = parsedConfig.shortId || (typeof data === 'object' ? data.shortId : undefined);
+                            if (qId) recordClick(qId, 'website', parsedConfig.landingWebsite);
+                          }}
                           className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200 transition-colors"
                         >
                           <Globe className="w-4 h-4 text-slate-600" />
