@@ -43,7 +43,13 @@ import {
   Instagram,
   FileEdit,
   Bell,
-  BellRing
+  BellRing,
+  Wand2,
+  Crown,
+  Star,
+  Tag,
+  PenTool,
+  Sparkle
 } from 'lucide-react';
 import { HistoryPanel } from './components/HistoryPanel';
 import { HeroSection } from './components/HeroSection';
@@ -52,14 +58,15 @@ import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { AnalyticsPage } from './components/AnalyticsPage';
 import { ScanNotificationToast } from './components/ScanNotificationToast';
 import { PWAInstallModal } from './components/PWAInstallPrompt';
-import { QRCodeConfig, HistoryItem, ContentType, QRFrame, User, FrameFont, ScanEvent } from './types';
+import { AdminFrameGenerator } from './components/AdminFrameGenerator';
+import { QRCodeConfig, HistoryItem, ContentType, QRFrame, User, FrameFont, ScanEvent, FrameCategory } from './types';
 import { downloadPNG, downloadSVG, downloadEPS, downloadQRPDF } from './utils/download';
 import { AdPlaceholder } from './components/AdPlaceholder';
 import { AuthModal } from './components/AuthModal';
 import { PhonePreview } from './components/PhonePreview';
 import { LandingViewer } from './components/LandingViewer';
 import { QRRenderer, FrameThumbnail } from './components/QRRenderer';
-import { FRAMES, FONT_FAMILIES } from './components/framesData';
+import { FRAMES, FONT_FAMILIES, FRAME_CATEGORIES } from './components/framesData';
 import { 
   getQRFromFirebase, 
   saveQRToFirebase, 
@@ -67,6 +74,10 @@ import {
   subscribeToUserQRs,
   subscribeToMultipleQRScans,
   playScanNotificationSound,
+  subscribeToCustomFrames,
+  saveCustomFrameToFirebase,
+  deleteCustomFrameFromFirebase,
+  updateQRTitleInFirebase,
   auth, 
   logoutFirebase, 
   getFirestoreErrorMessage 
@@ -75,6 +86,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 // DEFAULT CONFIG
 const DEFAULT_CONFIG: QRCodeConfig = {
+  title: 'Mi Código QR',
   value: 'https://google.com',
   targetContent: 'https://google.com',
   contentType: 'URL',
@@ -124,6 +136,9 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
+  const [adminFrameModalOpen, setAdminFrameModalOpen] = useState(false);
+  const [customFrames, setCustomFrames] = useState<QRFrame[]>([]);
+  const [selectedFrameCategory, setSelectedFrameCategory] = useState<FrameCategory>('all');
   const [analyticsItem, setAnalyticsItem] = useState<HistoryItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -368,6 +383,40 @@ export default function App() {
     }
   }, [history]);
 
+  // Real-time custom frames subscription from Firebase (for all users)
+  useEffect(() => {
+    const unsubscribe = subscribeToCustomFrames((cloudFrames) => {
+      if (cloudFrames) {
+        setCustomFrames(cloudFrames);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const allFrames: QRFrame[] = [...FRAMES, ...customFrames];
+  const visibleFrames = allFrames.filter(frame => {
+    if (selectedFrameCategory === 'all') return true;
+    if (selectedFrameCategory === 'custom') return !!frame.isCustom;
+    return frame.category === selectedFrameCategory;
+  });
+
+  const handleRenameHistory = async (id: string, newTitle: string) => {
+    setHistory(prev => prev.map(item => {
+      if (item.id === id || item.shortId === id) {
+        return { ...item, title: newTitle };
+      }
+      return item;
+    }));
+    if (config.shortId === id || (config as any).id === id) {
+      setConfig(prev => ({ ...prev, title: newTitle }));
+    }
+    try {
+      await updateQRTitleInFirebase(id, newTitle);
+    } catch (e) {
+      console.warn("Could not update QR title in Firebase:", e);
+    }
+  };
+
   const handleLogout = async () => {
     await logoutFirebase();
     setView('LANDING');
@@ -517,13 +566,14 @@ export default function App() {
       }, user.id);
 
       const finalId = savedDocId || config.shortId || shortId;
+      const qrTitle = config.title?.trim() || (config.isDynamic ? `[Smart] ${dynTitle || 'QR Dinámico'}` : (config.contentType === 'URL' ? urlInput : config.contentType));
       const newHistoryItem: HistoryItem = {
         ...config,
         id: finalId,
         shortId: finalId,
         ownerId: user.id,
         createdAt: Date.now(),
-        title: config.isDynamic ? `[Smart] ${dynTitle || 'QR Dinámico'}` : (config.contentType === 'URL' ? urlInput : config.contentType),
+        title: qrTitle,
         wifiSsid, wifiPass, locationLat: geoLat, locationLon: geoLon, vcardName, vcardPhone, vcardEmail
       };
       
@@ -591,12 +641,13 @@ export default function App() {
     // Ensure it's saved in Firebase immediately
     saveQRToFirebase(config, user?.id).catch(e => console.warn("Failed immediate sync on download:", e));
     
+    const qrTitle = config.title?.trim() || (config.isDynamic ? `[Smart] ${dynTitle || 'QR Dinámico'}` : (config.contentType === 'URL' ? urlInput : config.contentType));
     const newHistoryItem: HistoryItem = {
       ...config,
       id: config.shortId || shortId, 
       ownerId: user?.id,
       createdAt: Date.now(),
-      title: config.isDynamic ? `[Smart] ${dynTitle || 'QR Dinámico'}` : (config.contentType === 'URL' ? urlInput : config.contentType),
+      title: qrTitle,
       wifiSsid, wifiPass, locationLat: geoLat, locationLon: geoLon, vcardName, vcardPhone, vcardEmail
     };
     setHistory(prev => {
@@ -779,7 +830,7 @@ export default function App() {
   }
 
   // --- RENDER GENERATOR ---
-  const activeFrame = FRAMES.find(f => f.id === config.frameId) || FRAMES[0];
+  const activeFrame = allFrames.find(f => f.id === config.frameId) || allFrames[0];
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 font-sans selection:bg-indigo-500 selection:text-white overflow-hidden">
@@ -788,6 +839,7 @@ export default function App() {
         history={history}
         onSelect={handleHistorySelect}
         onDelete={handleDeleteHistory}
+        onRename={handleRenameHistory}
         onAnalytics={(item) => {
           setAnalyticsItem(item && (item.id || item.shortId) ? item : null);
           setView('ANALYTICS');
@@ -901,16 +953,46 @@ export default function App() {
           <div className="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* Left Column: Controls */}
-            <div className="lg:col-span-7 space-y-5">
+            <div className="lg:col-span-7 space-y-4">
               
-              <div className="flex gap-3">
-                 <button 
-                   onClick={handleNewQR}
-                   className="flex-1 flex items-center justify-center gap-2 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-dashed border-gray-300 dark:border-slate-700 p-3 rounded-xl font-bold transition-all group"
-                 >
-                   <FilePlus className="w-5 h-5 text-indigo-500 group-hover:scale-110 transition-transform" />
-                   <span>Nuevo</span>
-                 </button>
+              {/* QR Name / Title Bar & Quick Actions */}
+              <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-3 shadow-sm flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                    <Tag className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Nombre del Código QR</label>
+                    <input 
+                      type="text" 
+                      value={config.title || ''} 
+                      onChange={(e) => setConfig(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Dale un nombre al QR (ej: Menú Restaurante, Wi-Fi Invitados)..."
+                      className="w-full text-sm font-semibold text-slate-800 dark:text-slate-100 bg-transparent outline-none border-b border-transparent focus:border-indigo-500 transition-colors py-0.5 placeholder:text-slate-400 placeholder:font-normal"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button 
+                    onClick={() => setAdminFrameModalOpen(true)}
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm flex items-center gap-1.5 transition-all active:scale-95"
+                    title="Creador de Marcos y Siluetas (Admin)"
+                  >
+                    <Wand2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Creador Marcos</span>
+                    <span className="text-[9px] bg-black/25 px-1 py-0.5 rounded font-mono">ADMIN</span>
+                  </button>
+
+                  <button 
+                    onClick={handleNewQR}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-bold transition-all"
+                    title="Crear un nuevo código QR en blanco"
+                  >
+                    <FilePlus className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Nuevo</span>
+                  </button>
+                </div>
               </div>
 
               {/* TABS */}
@@ -1369,14 +1451,76 @@ export default function App() {
                   </div>
 
                   {/* Visual Frames Picker */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                       <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Marcos y Siluetas</h3>
-                       <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">{FRAMES.length} estilos</span>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-2">
+                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Marcos y Siluetas</h3>
+                         <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
+                           {visibleFrames.length} de {allFrames.length}
+                         </span>
+                       </div>
+                       <button 
+                         onClick={() => setAdminFrameModalOpen(true)}
+                         className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-200 dark:border-amber-800/60 transition-colors"
+                         title="Crear un nuevo marco temático"
+                       >
+                         <Wand2 className="w-3 h-3" />
+                         <span>+ Crear Marco (Admin)</span>
+                       </button>
                     </div>
 
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
-                      {FRAMES.map((frame) => {
+                    {/* Category Filter Pills */}
+                    <div className="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin">
+                      <button
+                        onClick={() => setSelectedFrameCategory('all')}
+                        className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                          selectedFrameCategory === 'all'
+                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                            : 'bg-gray-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        Todos ({allFrames.length})
+                      </button>
+                      {FRAME_CATEGORIES.filter(c => c.id !== 'all').map((cat) => {
+                        const count = cat.id === 'custom' 
+                          ? allFrames.filter(f => f.isCustom).length 
+                          : allFrames.filter(f => f.category === cat.id).length;
+                        if (count === 0 && cat.id !== 'custom') return null;
+                        return (
+                          <button
+                            key={cat.id}
+                            onClick={() => setSelectedFrameCategory(cat.id)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1 ${
+                              selectedFrameCategory === cat.id
+                                ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                                : 'bg-gray-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700'
+                            }`}
+                          >
+                            <span>{cat.icon}</span>
+                            <span>{cat.label}</span>
+                            <span className="text-[10px] opacity-70">({count})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Frames Grid */}
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 max-h-[380px] overflow-y-auto p-1">
+                      {/* Quick Admin Add Tile */}
+                      <button
+                        onClick={() => setAdminFrameModalOpen(true)}
+                        className="p-2.5 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-800/80 hover:border-amber-500 bg-amber-50/40 dark:bg-amber-950/20 flex flex-col items-center justify-center gap-1.5 transition-all text-center group"
+                        title="Crear un nuevo marco temático"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+                          <Wand2 className="w-5 h-5" />
+                        </div>
+                        <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 leading-tight">
+                          + Nuevo
+                        </span>
+                      </button>
+
+                      {visibleFrames.map((frame) => {
                         const isSelected = config.frameId === frame.id;
                         return (
                           <button
@@ -1385,15 +1529,22 @@ export default function App() {
                               setConfig(prev => ({
                                 ...prev,
                                 frameId: frame.id,
-                                frameText: prev.frameText || frame.defaultText || 'ESCANÉAME'
+                                frameText: prev.frameText || frame.defaultText || 'ESCANÉAME',
+                                frameColor: frame.themeColor || prev.frameColor,
+                                frameTextColor: prev.frameTextColor
                               }));
                             }}
-                            className={`p-2.5 rounded-xl border-2 flex flex-col items-center justify-between gap-1.5 transition-all text-center group
+                            className={`p-2.5 rounded-xl border-2 flex flex-col items-center justify-between gap-1.5 transition-all text-center relative group
                               ${isSelected 
                                 ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/50 shadow-md shadow-indigo-500/10' 
                                 : 'border-gray-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 bg-gray-50/50 dark:bg-slate-800/30'
                               }`}
                           >
+                            {frame.isCustom && (
+                              <span className="absolute top-1 right-1 text-[8px] bg-amber-500 text-white font-bold px-1 rounded-full shadow-xs">
+                                ADMIN
+                              </span>
+                            )}
                             <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
                               <FrameThumbnail frame={frame} isSelected={isSelected} fgColor={config.fgColor} />
                             </div>
@@ -1833,6 +1984,42 @@ export default function App() {
           onRequestPush={handleRequestPush}
         />
       )}
+
+      {/* ADMIN FRAME & SILHOUETTE GENERATOR MODAL */}
+      <AdminFrameGenerator
+        isOpen={adminFrameModalOpen}
+        onClose={() => setAdminFrameModalOpen(false)}
+        onSaveFrame={async (newFrame) => {
+          try {
+            await saveCustomFrameToFirebase(newFrame, user?.email || 'admin');
+            setCustomFrames(prev => [newFrame, ...prev.filter(f => f.id !== newFrame.id)]);
+            setConfig(prev => ({
+              ...prev,
+              frameId: newFrame.id,
+              frameColor: newFrame.themeColor || prev.frameColor,
+              frameTextColor: prev.frameTextColor,
+              frameText: newFrame.defaultText || prev.frameText
+            }));
+            alert(`¡Marco "${newFrame.name}" guardado y disponible para todos los usuarios!`);
+          } catch (e: any) {
+            console.error(e);
+            alert(`Error guardando el marco: ${e?.message || e}`);
+          }
+        }}
+        onDeleteFrame={async (frameId) => {
+          try {
+            await deleteCustomFrameFromFirebase(frameId);
+            setCustomFrames(prev => prev.filter(f => f.id !== frameId));
+            if (config.frameId === frameId) {
+              setConfig(prev => ({ ...prev, frameId: 'none' }));
+            }
+          } catch (e: any) {
+            console.error(e);
+            alert(`Error eliminando el marco: ${e?.message || e}`);
+          }
+        }}
+        existingFrames={customFrames}
+      />
     </div>
   );
 }

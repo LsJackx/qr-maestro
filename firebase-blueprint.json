@@ -54,6 +54,31 @@
         "targetUrl": { "type": "string" }
       },
       "required": ["qrId", "timestamp"]
+    },
+    "CustomFrame": {
+      "title": "Custom Frame",
+      "description": "Admin generated custom frames and thematic silhouettes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "silhouetteShape": { "type": "string" },
+        "topIcon": { "type": "string" },
+        "cornerStyle": { "type": "string" },
+        "bottomStyle": { "type": "string" },
+        "themeColor": { "type": "string" },
+        "accentColor": { "type": "string" },
+        "defaultText": { "type": "string" },
+        "viewBox": { "type": "string" },
+        "qrSize": { "type": "number" },
+        "qrX": { "type": "number" },
+        "qrY": { "type": "number" },
+        "isCustom": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "name", "viewBox"]
     }
   },
   "firestore": {
@@ -68,6 +93,10 @@
     "/neoqr_codes/{qrId}/clicks/{clickId}": {
       "schema": "ClickEvent",
       "description": "Clicks and CTR conversions subcollection"
+    },
+    "/custom_frames/{frameId}": {
+      "schema": "CustomFrame",
+      "description": "Collection of admin generated custom frames and thematic silhouettes"
     }
   }
 }

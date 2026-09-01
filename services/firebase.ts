@@ -24,7 +24,7 @@ import {
   signOut, 
   updateProfile 
 } from "firebase/auth";
-import { QRCodeConfig, HistoryItem, ScanEvent, ClickEvent } from "../types";
+import { QRCodeConfig, HistoryItem, ScanEvent, ClickEvent, QRFrame } from "../types";
 import configJson from "../firebase-applet-config.json";
 
 // Use environment variables if present (for Vercel / production), or fallback to firebase-applet-config.json
@@ -48,6 +48,7 @@ export const auth = getAuth(app);
 
 // Collection name constants
 const COLLECTION_NAME = "neoqr_codes";
+const CUSTOM_FRAMES_COLLECTION = "custom_frames";
 
 // --- AUTHENTICATION SERVICES ---
 
@@ -204,8 +205,20 @@ export const deleteQRFromFirebase = async (shortId: string): Promise<boolean> =>
 };
 
 /**
- * Fetches all QR codes belonging to a specific user.
+ * Updates only the title of a QR code in Firestore.
  */
+export const updateQRTitleInFirebase = async (shortId: string, newTitle: string): Promise<boolean> => {
+  try {
+    if (!shortId || !newTitle.trim()) return false;
+    const docRef = doc(db, COLLECTION_NAME, shortId);
+    await setDoc(docRef, { title: newTitle.trim(), updatedAt: Date.now() }, { merge: true });
+    return true;
+  } catch (error) {
+    console.error("Error updating QR title in Firebase:", error);
+    return false;
+  }
+};
+
 export const getUserQRsFromFirebase = async (userId: string): Promise<HistoryItem[]> => {
   try {
     if (!userId) return [];
@@ -540,6 +553,80 @@ export const subscribeToAllQRsAnalytics = (
   return () => {
     unsubscribers.forEach(u => u());
   };
+};
+
+// --- CUSTOM FRAMES SERVICES (ADMIN FRAME GENERATOR) ---
+
+/**
+ * Saves or updates a custom frame in Firestore
+ */
+export const saveCustomFrameToFirebase = async (frame: QRFrame, adminId?: string): Promise<string> => {
+  const frameId = frame.id || `custom-frame-${Date.now()}`;
+  const dataToSave = cleanData({
+    ...frame,
+    id: frameId,
+    isCustom: true,
+    createdBy: adminId || frame.createdBy || auth.currentUser?.email || 'admin',
+    createdAt: frame.createdAt || Date.now()
+  });
+
+  try {
+    const docRef = doc(db, CUSTOM_FRAMES_COLLECTION, frameId);
+    await setDoc(docRef, dataToSave, { merge: true });
+    return frameId;
+  } catch (error) {
+    console.error("Error saving custom frame to Firebase:", error);
+    throw error;
+  }
+};
+
+/**
+ * Deletes a custom frame from Firestore
+ */
+export const deleteCustomFrameFromFirebase = async (frameId: string): Promise<boolean> => {
+  try {
+    if (!frameId) return false;
+    const docRef = doc(db, CUSTOM_FRAMES_COLLECTION, frameId);
+    await deleteDoc(docRef);
+    return true;
+  } catch (error) {
+    console.error("Error deleting custom frame from Firebase:", error);
+    return false;
+  }
+};
+
+/**
+ * Fetches all custom frames from Firestore
+ */
+export const getCustomFramesFromFirebase = async (): Promise<QRFrame[]> => {
+  try {
+    const colRef = collection(db, CUSTOM_FRAMES_COLLECTION);
+    const q = query(colRef, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as QRFrame));
+  } catch (error) {
+    console.error("Error fetching custom frames:", error);
+    return [];
+  }
+};
+
+/**
+ * Subscribes in real-time to custom frames in Firestore so all users see updates instantly
+ */
+export const subscribeToCustomFrames = (callback: (frames: QRFrame[]) => void) => {
+  try {
+    const colRef = collection(db, CUSTOM_FRAMES_COLLECTION);
+    const q = query(colRef, orderBy('createdAt', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+      const frames = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as QRFrame));
+      callback(frames);
+    }, (error) => {
+      console.warn("Custom frames snapshot listener notice:", error);
+    });
+  } catch (error) {
+    console.error("Error subscribing to custom frames:", error);
+    return () => {};
+  }
 };
 
 export const getFirestoreErrorMessage = (error: any): string => {

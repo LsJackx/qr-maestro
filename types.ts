@@ -12,10 +12,23 @@ export interface User {
 
 export type FrameFont = 'sans' | 'serif' | 'mono' | 'display' | 'handwriting';
 
+export type FrameCategory = 
+  | 'all'
+  | 'standard' 
+  | 'professions' 
+  | 'love' 
+  | 'events' 
+  | 'business' 
+  | 'hospitality' 
+  | 'nature' 
+  | 'creative' 
+  | 'custom';
+
 export interface QRFrame {
   id: string;
   name: string;
   description?: string;
+  category?: FrameCategory;
   viewBox: string;
   qrSize: number; // Size of the inner QR relative to viewBox
   qrX: number; // X position
@@ -24,7 +37,21 @@ export interface QRFrame {
   defaultText?: string;
   textPosition?: 'bottom' | 'top' | 'none';
   borderRadius?: number;
-  badgeStyle?: 'banner' | 'pill' | 'bubble' | 'phone' | 'polaroid' | 'clipboard' | 'tag' | 'circle' | 'brackets' | 'none';
+  badgeStyle?: 'banner' | 'pill' | 'bubble' | 'phone' | 'polaroid' | 'clipboard' | 'tag' | 'circle' | 'brackets' | 'none' | 'ribbon' | 'ticket';
+  
+  // Custom Frame & Thematic Silhouettes (Admin Studio)
+  isCustom?: boolean;
+  createdBy?: string;
+  createdAt?: number;
+  silhouetteShape?: 'square' | 'rounded' | 'heart' | 'envelope' | 'ticket' | 'shopping_bag' | 'parchment' | 'cocktail' | 'oriental_arch' | 'rosette' | 'phone' | 'chat_bubble' | 'clipboard' | 'tech_hud';
+  topIcon?: string; // Emoji, SVG icon symbol, or label (e.g. 👷‍♂️, 🎂, 💖, 🍸, 🛍️, 🌸, ☕)
+  topIconLabel?: string;
+  topBadgeBg?: string;
+  cornerStyle?: 'none' | 'flowers' | 'pine_holly' | 'autumn_leaves' | 'confetti' | 'arrows' | 'hearts' | 'lanterns' | 'stars' | 'tech_hud' | 'cocktail_lime';
+  bottomStyle?: 'none' | 'hanging_hearts' | 'quill_ink' | 'gift_ribbon' | 'flower_garland' | 'banner' | 'pill';
+  themeColor?: string;
+  accentColor?: string;
+  customSvgMarkup?: string;
 }
 
 export interface QRCodeConfig {

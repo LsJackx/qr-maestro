@@ -6,11 +6,13 @@ import { FRAMES, FONT_FAMILIES } from './framesData';
 interface QRRendererProps {
   config: QRCodeConfig;
   svgRef?: React.RefObject<SVGSVGElement>;
+  customFrames?: QRFrame[];
   className?: string;
 }
 
-export const QRRenderer: React.FC<QRRendererProps> = ({ config, svgRef, className = '' }) => {
-  const activeFrame = FRAMES.find(f => f.id === config.frameId) || FRAMES[0];
+export const QRRenderer: React.FC<QRRendererProps> = ({ config, svgRef, customFrames = [], className = '' }) => {
+  const framePool = [...FRAMES, ...customFrames];
+  const activeFrame = framePool.find(f => f.id === config.frameId) || FRAMES[0];
   const frameColor = config.frameColor || config.fgColor;
   const frameTextColor = config.frameTextColor || '#ffffff';
   const frameText = config.frameText !== undefined ? config.frameText : (activeFrame.defaultText || 'ESCANÉAME');
@@ -475,8 +477,441 @@ function renderFrameShape(
       );
 
     default:
-      return null;
+      // GENERIC & THEMATIC / CUSTOM ADMIN FRAME RENDERER
+      return renderThematicOrCustomFrame(frame, config, frameColor, frameTextColor, frameText, fontFamily);
   }
+}
+
+/**
+ * Renders thematic and admin-created custom frames with rich SVG silhouettes,
+ * top icons/emojis, decorative corners, and bottom accessories.
+ */
+function renderThematicOrCustomFrame(
+  frame: QRFrame,
+  config: QRCodeConfig,
+  frameColor: string,
+  frameTextColor: string,
+  frameText: string,
+  fontFamily: string
+) {
+  const shape = frame.silhouetteShape || 'rounded';
+  const corner = frame.cornerStyle || 'none';
+  const bottom = frame.bottomStyle || 'none';
+  const topIcon = frame.topIcon;
+  const accent = frame.accentColor || config.bgColor || '#ffffff';
+
+  return (
+    <g>
+      {/* 1. Base Silhouette / Outer Shape */}
+      {shape === 'heart' && (
+        <path
+          d="M 50 118 C 15 88 2 62 2 38 C 2 16 18 2 40 2 C 48 2 50 8 50 8 C 50 8 52 2 60 2 C 82 2 98 16 98 38 C 98 62 85 88 50 118 Z"
+          fill="none"
+          stroke={frameColor}
+          strokeWidth="4"
+          strokeLinejoin="round"
+        />
+      )}
+
+      {shape === 'ticket' && (
+        <g>
+          {/* Ticket body with circular cutouts on sides */}
+          <path
+            d="M 8 4 L 92 4 A 4 4 0 0 1 96 8 L 96 52 A 8 8 0 0 0 96 68 L 96 120 A 4 4 0 0 1 92 124 L 8 124 A 4 4 0 0 1 4 120 L 4 68 A 8 8 0 0 0 4 52 L 4 8 A 4 4 0 0 1 8 4 Z"
+            fill="none"
+            stroke={frameColor}
+            strokeWidth="3.5"
+          />
+          {/* Perforation line */}
+          <line x1="12" y1="60" x2="88" y2="60" stroke={frameColor} strokeWidth="1.5" strokeDasharray="3,3" opacity="0.5" />
+        </g>
+      )}
+
+      {shape === 'shopping_bag' && (
+        <g>
+          {/* Shopping Bag handles */}
+          <path
+            d="M 34 26 C 34 8 66 8 66 26"
+            fill="none"
+            stroke={frameColor}
+            strokeWidth="3.5"
+            strokeLinecap="round"
+          />
+          {/* Bag Body */}
+          <rect
+            x="4"
+            y="24"
+            width="92"
+            height="108"
+            rx="6"
+            fill="none"
+            stroke={frameColor}
+            strokeWidth="3.5"
+          />
+          {/* Bag crease / fold */}
+          <line x1="4" y1="36" x2="96" y2="36" stroke={frameColor} strokeWidth="1" opacity="0.3" />
+        </g>
+      )}
+
+      {shape === 'envelope' && (
+        <g>
+          {/* Envelope Card */}
+          <rect
+            x="4"
+            y="22"
+            width="92"
+            height="106"
+            rx="8"
+            fill="none"
+            stroke={frameColor}
+            strokeWidth="3.5"
+          />
+          {/* Envelope open flap lines */}
+          <path
+            d="M 4 22 L 50 48 L 96 22"
+            fill="none"
+            stroke={frameColor}
+            strokeWidth="2"
+            opacity="0.5"
+          />
+          {/* Postage stamp outline */}
+          <rect x="74" y="28" width="16" height="18" rx="2" fill="none" stroke={frameColor} strokeWidth="1" strokeDasharray="2,2" opacity="0.6" />
+        </g>
+      )}
+
+      {shape === 'parchment' && (
+        <g>
+          {/* Rolled parchment effect */}
+          <rect
+            x="5"
+            y="5"
+            width="90"
+            height="124"
+            rx="6"
+            fill="none"
+            stroke={frameColor}
+            strokeWidth="3.5"
+          />
+          {/* Scroll corner curls */}
+          <path d="M 5 16 C 12 16 12 5 5 5" fill="none" stroke={frameColor} strokeWidth="2" />
+          <path d="M 95 16 C 88 16 88 5 95 5" fill="none" stroke={frameColor} strokeWidth="2" />
+          <path d="M 5 118 C 12 118 12 129 5 129" fill="none" stroke={frameColor} strokeWidth="2" />
+          <path d="M 95 118 C 88 118 88 129 95 129" fill="none" stroke={frameColor} strokeWidth="2" />
+        </g>
+      )}
+
+      {shape === 'oriental_arch' && (
+        <g>
+          {/* Dome / Arabesque Arch Top */}
+          <path
+            d="M 50 4 C 58 14 88 18 94 36 L 94 126 A 4 4 0 0 1 90 130 L 10 130 A 4 4 0 0 1 6 126 L 6 36 C 12 18 42 14 50 4 Z"
+            fill="none"
+            stroke={frameColor}
+            strokeWidth="3.5"
+          />
+          {/* Inner arch trim line */}
+          <path
+            d="M 50 9 C 56 18 84 22 90 38"
+            fill="none"
+            stroke={frameColor}
+            strokeWidth="1.5"
+            opacity="0.5"
+          />
+          <path
+            d="M 50 9 C 44 18 16 22 10 38"
+            fill="none"
+            stroke={frameColor}
+            strokeWidth="1.5"
+            opacity="0.5"
+          />
+        </g>
+      )}
+
+      {shape === 'rosette' && (
+        <g>
+          {/* Scalloped Medallion Outer Contour */}
+          <rect
+            x="4"
+            y="4"
+            width="92"
+            height="122"
+            rx="24"
+            fill="none"
+            stroke={frameColor}
+            strokeWidth="3.5"
+          />
+          {/* Scallop accents */}
+          <circle cx="50" cy="4" r="5" fill={frameColor} />
+          <circle cx="50" cy="126" r="5" fill={frameColor} />
+          <circle cx="4" cy="65" r="5" fill={frameColor} />
+          <circle cx="96" cy="65" r="5" fill={frameColor} />
+        </g>
+      )}
+
+      {(shape === 'rounded' || shape === 'square') && (
+        <rect
+          x="3"
+          y="3"
+          width="94"
+          height={frame.hasText !== false ? "124" : "94"}
+          rx={shape === 'square' ? 2 : (frame.borderRadius || 12)}
+          fill="none"
+          stroke={frameColor}
+          strokeWidth="3.5"
+        />
+      )}
+
+      {/* 2. Top Icon / Emoji Badge */}
+      {topIcon && (
+        <g transform="translate(50, 16)">
+          <circle cx="0" cy="0" r="13" fill={frameColor} />
+          <circle cx="0" cy="0" r="11" fill={accent} />
+          <text
+            x="0"
+            y="3.5"
+            fontSize="12"
+            textAnchor="middle"
+            dominantBaseline="middle"
+          >
+            {topIcon}
+          </text>
+        </g>
+      )}
+
+      {/* 3. Corner Embellishments */}
+      {corner === 'flowers' && (
+        <g>
+          {/* Top Left Flower */}
+          <g transform="translate(10, 10)">
+            <circle cx="0" cy="0" r="4" fill="#f472b6" />
+            <circle cx="-3" cy="-3" r="3" fill="#fbcfe8" />
+            <circle cx="3" cy="-3" r="3" fill="#fbcfe8" />
+            <circle cx="3" cy="3" r="3" fill="#fbcfe8" />
+            <circle cx="-3" cy="3" r="3" fill="#fbcfe8" />
+            <circle cx="0" cy="0" r="2" fill="#fbbf24" />
+          </g>
+          {/* Top Right Flower */}
+          <g transform="translate(90, 10)">
+            <circle cx="0" cy="0" r="4" fill="#a78bfa" />
+            <circle cx="-3" cy="-3" r="3" fill="#ddd6fe" />
+            <circle cx="3" cy="-3" r="3" fill="#ddd6fe" />
+            <circle cx="3" cy="3" r="3" fill="#ddd6fe" />
+            <circle cx="-3" cy="3" r="3" fill="#ddd6fe" />
+            <circle cx="0" cy="0" r="2" fill="#fbbf24" />
+          </g>
+          {/* Bottom Left Leaf */}
+          <g transform="translate(10, 94)">
+            <path d="M 0 0 C -4 -4 -4 -8 0 -10 C 4 -8 4 -4 0 0 Z" fill="#4ade80" />
+            <circle cx="0" cy="0" r="3" fill="#fb7185" />
+          </g>
+          {/* Bottom Right Leaf */}
+          <g transform="translate(90, 94)">
+            <path d="M 0 0 C 4 -4 4 -8 0 -10 C -4 -8 -4 -4 0 0 Z" fill="#4ade80" />
+            <circle cx="0" cy="0" r="3" fill="#fb7185" />
+          </g>
+        </g>
+      )}
+
+      {corner === 'pine_holly' && (
+        <g>
+          {/* Top Left Pine & Holly */}
+          <g transform="translate(8, 8)">
+            <path d="M 0 0 L -4 -6 L 2 -4 L -2 -10 L 6 -6" fill="none" stroke="#16a34a" strokeWidth="1.5" />
+            <circle cx="0" cy="0" r="2.5" fill="#dc2626" />
+            <circle cx="3" cy="2" r="2.5" fill="#ef4444" />
+            <circle cx="-2" cy="3" r="2" fill="#b91c1c" />
+          </g>
+          {/* Top Right Pine & Holly */}
+          <g transform="translate(92, 8)">
+            <path d="M 0 0 L 4 -6 L -2 -4 L 2 -10 L -6 -6" fill="none" stroke="#16a34a" strokeWidth="1.5" />
+            <circle cx="0" cy="0" r="2.5" fill="#dc2626" />
+            <circle cx="-3" cy="2" r="2.5" fill="#ef4444" />
+            <circle cx="2" cy="3" r="2" fill="#b91c1c" />
+          </g>
+        </g>
+      )}
+
+      {corner === 'autumn_leaves' && (
+        <g>
+          {/* Top Left Maple Leaf */}
+          <g transform="translate(8, 8)">
+            <path d="M 0 0 C -4 -2 -6 -6 -2 -8 C -2 -4 2 -4 4 -8 C 6 -6 4 -2 0 0 Z" fill="#ea580c" />
+            <circle cx="2" cy="2" r="2" fill="#78350f" />
+          </g>
+          {/* Top Right Maple Leaf */}
+          <g transform="translate(92, 8)">
+            <path d="M 0 0 C 4 -2 6 -6 2 -8 C 2 -4 -2 -4 -4 -8 C -6 -6 -4 -2 0 0 Z" fill="#d97706" />
+            <circle cx="-2" cy="2" r="2" fill="#78350f" />
+          </g>
+        </g>
+      )}
+
+      {corner === 'confetti' && (
+        <g>
+          <circle cx="8" cy="8" r="2" fill="#eab308" />
+          <circle cx="14" cy="4" r="1.5" fill="#ec4899" />
+          <circle cx="4" cy="14" r="1.5" fill="#3b82f6" />
+          <circle cx="92" cy="8" r="2" fill="#8b5cf6" />
+          <circle cx="86" cy="4" r="1.5" fill="#10b981" />
+          <circle cx="96" cy="14" r="1.5" fill="#f97316" />
+          {/* Music Note */}
+          <text x="88" y="24" fontSize="7" fill={frameColor}>🎵</text>
+          <text x="8" y="24" fontSize="7" fill={frameColor}>✨</text>
+        </g>
+      )}
+
+      {corner === 'arrows' && (
+        <g>
+          <path d="M 6 16 L 16 6 M 16 6 L 10 6 M 16 6 L 16 12" stroke={frameColor} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          <path d="M 94 16 L 84 6 M 84 6 L 90 6 M 84 6 L 84 12" stroke={frameColor} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        </g>
+      )}
+
+      {corner === 'hearts' && (
+        <g>
+          <text x="6" y="14" fontSize="8">💖</text>
+          <text x="86" y="14" fontSize="8">💖</text>
+          <text x="4" y="98" fontSize="7">✨</text>
+          <text x="88" y="98" fontSize="7">✨</text>
+        </g>
+      )}
+
+      {corner === 'lanterns' && (
+        <g>
+          {/* Top Left Hanging Lantern */}
+          <g transform="translate(10, 6)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="#eab308" strokeWidth="1" />
+            <rect x="-4" y="6" width="8" height="10" rx="3" fill="#dc2626" stroke="#facc15" strokeWidth="1" />
+            <line x1="0" y1="16" x2="0" y2="20" stroke="#facc15" strokeWidth="1" />
+          </g>
+          {/* Top Right Hanging Lantern */}
+          <g transform="translate(90, 6)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="#eab308" strokeWidth="1" />
+            <rect x="-4" y="6" width="8" height="10" rx="3" fill="#dc2626" stroke="#facc15" strokeWidth="1" />
+            <line x1="0" y1="16" x2="0" y2="20" stroke="#facc15" strokeWidth="1" />
+          </g>
+        </g>
+      )}
+
+      {corner === 'cocktail_lime' && (
+        <g transform="translate(90, 10)">
+          {/* Lime Slice */}
+          <circle cx="0" cy="0" r="8" fill="#84cc16" stroke="#4d7c0f" strokeWidth="1" />
+          <circle cx="0" cy="0" r="6.5" fill="#bef264" />
+          <path d="M 0 0 L -4 -4 M 0 0 L 4 -4 M 0 0 L -4 4 M 0 0 L 4 4 M 0 0 L 0 -6 M 0 0 L 0 6 M 0 0 L -6 0 M 0 0 L 6 0" stroke="#4d7c0f" strokeWidth="0.6" />
+        </g>
+      )}
+
+      {/* 4. Bottom Accessories & Hanging Decorations */}
+      {bottom === 'hanging_hearts' && (
+        <g>
+          <line x1="28" y1="116" x2="28" y2="128" stroke={frameColor} strokeWidth="1" strokeDasharray="1.5,1.5" />
+          <text x="24" y="134" fontSize="7">💕</text>
+          <line x1="50" y1="118" x2="50" y2="132" stroke={frameColor} strokeWidth="1" strokeDasharray="1.5,1.5" />
+          <text x="46" y="138" fontSize="8">💖</text>
+          <line x1="72" y1="116" x2="72" y2="128" stroke={frameColor} strokeWidth="1" strokeDasharray="1.5,1.5" />
+          <text x="68" y="134" fontSize="7">💕</text>
+        </g>
+      )}
+
+      {bottom === 'quill_ink' && (
+        <g transform="translate(78, 114)">
+          {/* Feather Quill */}
+          <path d="M 0 10 C 6 6 12 -4 14 -12 C 10 -8 4 -4 0 0 Z" fill="#78350f" />
+          <line x1="0" y1="10" x2="14" y2="-12" stroke="#451a03" strokeWidth="0.8" />
+          {/* Ink Pot */}
+          <rect x="-6" y="4" width="8" height="7" rx="1.5" fill={frameColor} />
+        </g>
+      )}
+
+      {bottom === 'gift_ribbon' && (
+        <g transform="translate(50, 120)">
+          {/* Satin Bow */}
+          <path d="M 0 0 C -8 -6 -12 -2 0 4 C 12 -2 8 -6 0 0 Z" fill="#ef4444" stroke="#b91c1c" strokeWidth="1" />
+          <circle cx="0" cy="0" r="2.5" fill="#fde047" />
+          <path d="M -3 3 L -8 10 M 3 3 L 8 10" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+        </g>
+      )}
+
+      {/* 5. Text Banner / Badge (if enabled) */}
+      {frame.hasText !== false && frameText && (
+        <g>
+          {frame.badgeStyle === 'ticket' ? (
+            <g>
+              <rect
+                x="8"
+                y="96"
+                width="84"
+                height="22"
+                rx="4"
+                fill={frameColor}
+              />
+              <line x1="12" y1="96" x2="12" y2="118" stroke={accent} strokeWidth="1" strokeDasharray="2,2" />
+              <line x1="88" y1="96" x2="88" y2="118" stroke={accent} strokeWidth="1" strokeDasharray="2,2" />
+              <text
+                x="50"
+                y="107"
+                fill={frameTextColor}
+                fontSize="8"
+                fontWeight="bold"
+                letterSpacing="0.8"
+                fontFamily={fontFamily}
+                textAnchor="middle"
+                dominantBaseline="middle"
+              >
+                {frameText}
+              </text>
+            </g>
+          ) : frame.badgeStyle === 'banner' ? (
+            <g>
+              <path
+                d="M 6 96 L 43 96 L 50 90 L 57 96 L 94 96 A 5 5 0 0 1 97 101 L 97 119 A 5 5 0 0 1 92 124 L 8 124 A 5 5 0 0 1 3 119 L 3 101 A 5 5 0 0 1 6 96 Z"
+                fill={frameColor}
+              />
+              <text
+                x="50"
+                y="113"
+                fill={frameTextColor}
+                fontSize="8.5"
+                fontWeight="bold"
+                letterSpacing="0.8"
+                fontFamily={fontFamily}
+                textAnchor="middle"
+                dominantBaseline="middle"
+              >
+                {frameText}
+              </text>
+            </g>
+          ) : (
+            /* Default Rounded Pill Badge */
+            <g>
+              <rect
+                x="10"
+                y="96"
+                width="80"
+                height="22"
+                rx="11"
+                fill={frameColor}
+              />
+              <text
+                x="50"
+                y="107"
+                fill={frameTextColor}
+                fontSize="8.5"
+                fontWeight="bold"
+                letterSpacing="0.6"
+                fontFamily={fontFamily}
+                textAnchor="middle"
+                dominantBaseline="middle"
+              >
+                {frameText}
+              </text>
+            </g>
+          )}
+        </g>
+      )}
+    </g>
+  );
 }
 
 // TEXT WRAPPER UTILITY FOR SVG

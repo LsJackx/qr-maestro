@@ -27,5 +27,11 @@ service cloud.firestore {
         allow update, delete: if isAuthenticated();
       }
     }
+
+    // Custom Frames created by Admin for all users to enjoy
+    match /custom_frames/{frameId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
   }
 }
