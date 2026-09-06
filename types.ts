@@ -88,7 +88,9 @@ export interface QRCodeConfig {
   cardTextColor?: string;
   cardShowStars?: boolean;
   cardBadgeText?: string;
-  cardTheme?: 'standard' | 'google_review' | 'tripadvisor' | 'wifi' | 'instagram' | 'whatsapp' | 'payment';
+  cardTheme?: 'standard' | 'google_review' | 'google_acrylic_wood' | 'google_black_card' | 'google_geometric_card' | 'tripadvisor' | 'wifi' | 'instagram' | 'whatsapp' | 'payment' | 'social' | 'tips';
+  cardCustomLogoText?: string;
+  cardShowWoodBase?: boolean;
   templateId?: string;
 
   contentType: ContentType;

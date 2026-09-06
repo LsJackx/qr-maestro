@@ -1100,6 +1100,16 @@ const renderFiveStars = (cx: number, cy: number, scale: number = 1) => {
   );
 };
 
+const renderPhoneScanIcon = (cx: number, cy: number, scale: number = 1) => (
+  <g transform={`translate(${cx}, ${cy}) scale(${scale})`}>
+    <rect x="-8" y="-14" width="16" height="28" rx="3.5" fill="none" stroke="#475569" strokeWidth="1.8" />
+    <line x1="-3" y1="-10.5" x2="3" y2="-10.5" stroke="#475569" strokeWidth="1.2" strokeLinecap="round" />
+    <circle cx="0" cy="9.5" r="1.1" fill="#475569" />
+    <rect x="-4.5" y="-6.5" width="9" height="9" rx="1" fill="#94a3b8" />
+    <line x1="-6" y1="-2" x2="6" y2="-2" stroke="#2563eb" strokeWidth="1.2" />
+  </g>
+);
+
 // FULL CARD / FLYER / INSTRUCTIONS RENDERER
 interface CardQRRendererProps {
   config: QRCodeConfig;
@@ -1132,6 +1142,265 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
   const cardCta = config.cardCta || 'Acceso rápido y seguro';
   const position = config.cardPosition || 'bottom';
   const hasStars = config.cardShowStars || config.cardTheme === 'google_review' || cardSubtitle.includes('⭐');
+
+  // SPECIALIZED GOOGLE REVIEWS THEMES (Direct reproduction of display stands and PVC cards)
+  // A. ACRYLIC PLAQUE WITH WOODEN BASE (Image 2)
+  if (config.cardTheme === 'google_acrylic_wood') {
+    const showWood = config.cardShowWoodBase !== false;
+    const plaqueHeight = showWood ? 420 : 455;
+    const svgHeight = showWood ? 505 : 470;
+
+    return (
+      <svg
+        ref={svgRef}
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox={`0 0 340 ${svgHeight}`}
+        className={className}
+        style={{ overflow: 'visible' }}
+      >
+        <defs>
+          <linearGradient id="woodBaseGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#e8cfad" />
+            <stop offset="25%" stopColor="#dab383" />
+            <stop offset="70%" stopColor="#c59964" />
+            <stop offset="100%" stopColor="#ab7e47" />
+          </linearGradient>
+          <linearGradient id="acrylicReflection" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.8" />
+            <stop offset="30%" stopColor="#ffffff" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+          <filter id="subtlePlaqueDrop" x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="5" stdDeviation="8" floodColor="#000000" floodOpacity="0.08" />
+          </filter>
+        </defs>
+
+        {/* Acrylic Plaque Body */}
+        <rect x="36" y="16" width="268" height={plaqueHeight} rx="14" fill="#ffffff" stroke="#e2e8f0" strokeWidth="2" filter="url(#subtlePlaqueDrop)" />
+        {/* Subtle acrylic top highlight */}
+        <line x1="50" y1="18" x2="290" y2="18" stroke="#ffffff" strokeWidth="2.5" />
+
+        {/* Google G Logo at top */}
+        {renderGoogleG(170 - 22, 36, 1.8)}
+
+        {/* 5 Golden Stars */}
+        {renderFiveStars(170, 110, 1.4)}
+
+        {/* Title: Valorános */}
+        <text 
+          x="170" 
+          y="150" 
+          fill="#0f172a" 
+          fontSize="24" 
+          fontWeight="800" 
+          fontFamily={frameFontFamily} 
+          textAnchor="middle"
+          letterSpacing="-0.3"
+        >
+          {cardTitle || 'Valorános'}
+        </text>
+
+        {/* Framed QR Code */}
+        <g transform="translate(68, 170)">
+          <rect x="-4" y="-4" width="212" height="212" rx="14" fill="#ffffff" stroke="#94a3b8" strokeWidth="1.5" />
+          <RenderFramedOrPlainQR
+            config={config}
+            activeFrame={activeFrame}
+            frameColor={frameColor}
+            frameTextColor={frameTextColor}
+            frameText={frameText}
+            frameFontFamily={frameFontFamily}
+            computedLogoSize={computedLogoSize}
+            width={204}
+            height={204}
+          />
+        </g>
+
+        {/* Phone Scan Icon + Escanea QR */}
+        <g transform="translate(170, 396)">
+          {renderPhoneScanIcon(0, -6, 0.75)}
+          <text 
+            x="0" 
+            y="17" 
+            fill="#475569" 
+            fontSize="10" 
+            fontWeight="700" 
+            fontFamily={frameFontFamily} 
+            textAnchor="middle"
+            letterSpacing="0.2"
+          >
+            {cardInstructions || 'Escanea QR'}
+          </text>
+        </g>
+
+        {/* Wooden Stand Base (como en la Imagen 2) */}
+        {showWood && (
+          <g transform="translate(26, 432)">
+            <rect x="6" y="52" width="276" height="5" rx="2.5" fill="#000000" opacity="0.18" />
+            <rect x="0" y="0" width="288" height="52" rx="6" fill="url(#woodBaseGrad)" stroke="#a1753e" strokeWidth="1" />
+            <rect x="12" y="2" width="264" height="4" rx="2" fill="#784f22" opacity="0.45" />
+            <path d="M 16 19 Q 80 16, 150 20 T 272 17" fill="none" stroke="#ba8c54" strokeWidth="0.8" opacity="0.5" />
+            <path d="M 24 35 Q 110 38, 190 34 T 268 36" fill="none" stroke="#ba8c54" strokeWidth="0.8" opacity="0.4" />
+          </g>
+        )}
+      </svg>
+    );
+  }
+
+  // B. MATTE BLACK NFC / REVIEW CARD (Image 3)
+  if (config.cardTheme === 'google_black_card') {
+    return (
+      <svg
+        ref={svgRef}
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 320 510"
+        className={className}
+        style={{ overflow: 'visible' }}
+      >
+        <defs>
+          <filter id="blackCardShadow" x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="8" stdDeviation="12" floodColor="#000000" floodOpacity="0.4" />
+          </filter>
+        </defs>
+
+        {/* Matte Black Card Body */}
+        <rect x="0" y="0" width="320" height="510" rx="24" fill="#141416" stroke="#2a2a30" strokeWidth="2" filter="url(#blackCardShadow)" />
+
+        {/* Top 4-Color Google Strip */}
+        <g transform="translate(24, 22)">
+          <rect x="0" y="0" width="64" height="11" rx="3.5" fill="#EA4335" />
+          <rect x="69" y="0" width="64" height="11" rx="3.5" fill="#FBBC05" />
+          <rect x="138" y="0" width="64" height="11" rx="3.5" fill="#4285F4" />
+          <rect x="207" y="0" width="65" height="11" rx="3.5" fill="#34A853" />
+        </g>
+
+        {/* Header Text */}
+        <text x="160" y="58" fill="#f8fafc" fontSize="10.5" fontWeight="600" fontFamily={frameFontFamily} textAnchor="middle">
+          <tspan x="160" dy="0">Escanea el código QR o</tspan>
+          <tspan x="160" dy="16">toca con tu celular para</tspan>
+          <tspan x="160" dy="16">dejarnos tu opinión en Google.</tspan>
+        </text>
+
+        {/* 5 Golden Stars */}
+        {renderFiveStars(160, 120, 1.25)}
+
+        {/* Crisp White QR Container */}
+        <g transform="translate(48, 140)">
+          <rect x="0" y="0" width="224" height="224" rx="18" fill="#ffffff" />
+          <g transform="translate(7, 7)">
+            <RenderFramedOrPlainQR
+              config={config}
+              activeFrame={activeFrame}
+              frameColor={frameColor}
+              frameTextColor={frameTextColor}
+              frameText={frameText}
+              frameFontFamily={frameFontFamily}
+              computedLogoSize={computedLogoSize}
+              width={210}
+              height={210}
+            />
+          </g>
+        </g>
+
+        {/* Custom Logo / Business Box */}
+        <g transform="translate(48, 386)">
+          <rect x="0" y="0" width="224" height="42" rx="8" fill="#1b1b22" stroke="#52525b" strokeWidth="1.5" strokeDasharray="5,4" />
+          <text 
+            x="112" 
+            y="26" 
+            fill="#e4e4e7" 
+            fontSize="12.5" 
+            fontWeight="bold" 
+            fontFamily={frameFontFamily} 
+            textAnchor="middle"
+          >
+            {config.cardCustomLogoText || 'Pon tu logo / Tu Negocio'}
+          </text>
+        </g>
+
+        {/* Bottom 4-Color Google Strip */}
+        <g transform="translate(24, 474)">
+          <rect x="0" y="0" width="64" height="11" rx="3.5" fill="#EA4335" />
+          <rect x="69" y="0" width="64" height="11" rx="3.5" fill="#FBBC05" />
+          <rect x="138" y="0" width="64" height="11" rx="3.5" fill="#4285F4" />
+          <rect x="207" y="0" width="65" height="11" rx="3.5" fill="#34A853" />
+        </g>
+      </svg>
+    );
+  }
+
+  // C. GEOMETRIC GOOGLE MULTICOLOR CARD (Image 1)
+  if (config.cardTheme === 'google_geometric_card') {
+    return (
+      <svg
+        ref={svgRef}
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 320 510"
+        className={className}
+        style={{ overflow: 'visible' }}
+      >
+        <defs>
+          <clipPath id="geometricCardClip">
+            <rect x="0" y="0" width="320" height="510" rx="24" />
+          </clipPath>
+          <filter id="geoShadow" x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="6" stdDeviation="10" floodOpacity="0.15" />
+          </filter>
+        </defs>
+
+        {/* Main Base Card with Google Color Polygons */}
+        <g clipPath="url(#geometricCardClip)" filter="url(#geoShadow)">
+          <rect x="0" y="0" width="320" height="510" fill="#2563EB" />
+          <path d="M 0 130 L 320 180 L 320 310 L 0 360 Z" fill="#16A34A" />
+          <polygon points="180,180 320,180 320,400 240,400" fill="#F59E0B" />
+          <path d="M 0 350 L 320 395 L 320 510 L 0 510 Z" fill="#DC2626" />
+        </g>
+
+        {/* Card Border */}
+        <rect x="0" y="0" width="320" height="510" rx="24" fill="none" stroke="#ffffff" strokeWidth="2" opacity="0.6" />
+
+        {/* Top Text: Califícanos en Google */}
+        <text x="160" y="44" fill="#ffffff" fontSize="12" fontWeight="600" fontFamily={frameFontFamily} textAnchor="middle" opacity="0.95">
+          Califícanos en
+        </text>
+        <text x="160" y="74" fill="#ffffff" fontSize="26" fontWeight="900" fontFamily={frameFontFamily} textAnchor="middle" letterSpacing="-0.5">
+          Google
+        </text>
+
+        {/* 5 Stars + "Tu opinión nos importa" */}
+        {renderFiveStars(160, 96, 1.15)}
+        <text x="160" y="118" fill="#ffffff" fontSize="11" fontWeight="700" fontFamily={frameFontFamily} textAnchor="middle" opacity="0.95">
+          {cardSubtitle || 'Tu opinión nos importa'}
+        </text>
+
+        {/* White Center QR Card */}
+        <g transform="translate(48, 138)">
+          <rect x="0" y="0" width="224" height="224" rx="20" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
+          <g transform="translate(7, 7)">
+            <RenderFramedOrPlainQR
+              config={config}
+              activeFrame={activeFrame}
+              frameColor={frameColor}
+              frameTextColor={frameTextColor}
+              frameText={frameText}
+              frameFontFamily={frameFontFamily}
+              computedLogoSize={computedLogoSize}
+              width={210}
+              height={210}
+            />
+          </g>
+        </g>
+
+        {/* Bottom CTA: Escanea */}
+        <g transform="translate(160, 440)">
+          <rect x="-65" y="-16" width="130" height="32" rx="16" fill="#ffffff" fillOpacity="0.25" stroke="#ffffff" strokeWidth="1.5" />
+          <text x="0" y="5" fill="#ffffff" fontSize="13" fontWeight="800" fontFamily={frameFontFamily} textAnchor="middle" letterSpacing="0.8">
+            {cardCta || 'Escanea'}
+          </text>
+        </g>
+      </svg>
+    );
+  }
 
   // 1. FLYER / POSTER FORMAT (360 x 520)
   if (position === 'flyer') {

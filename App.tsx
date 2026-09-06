@@ -1820,7 +1820,10 @@ export default function App() {
                             className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2.5 text-xs font-semibold"
                           >
                             <option value="standard">Estándar / Negocio</option>
-                            <option value="google_review">Google Reseñas (Logo G + Estrellas)</option>
+                            <option value="google_acrylic_wood">🌟 Placa Acrílica con Base Madera (Google)</option>
+                            <option value="google_black_card">🖤 Tarjeta Negra Mate NFC (Google)</option>
+                            <option value="google_geometric_card">🎨 Tarjeta Geométrica Multicolor (Google)</option>
+                            <option value="google_review">Google Reseñas Clásico</option>
                             <option value="tripadvisor">TripAdvisor</option>
                             <option value="wifi">Conexión Wi-Fi</option>
                             <option value="social">Redes Sociales</option>
@@ -1844,6 +1847,38 @@ export default function App() {
                           </label>
                         </div>
                       </div>
+
+                      {/* Specialized Controls for Google Acrylic & Black Card */}
+                      {config.cardTheme === 'google_acrylic_wood' && (
+                        <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center justify-between">
+                          <div>
+                            <span className="text-xs font-bold text-amber-900 dark:text-amber-200 block">Soporte con Base de Madera</span>
+                            <span className="text-[10px] text-amber-700 dark:text-amber-400">Renderiza el pie de madera natural de mostrador</span>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={config.cardShowWoodBase !== false} 
+                              onChange={(e) => setConfig(prev => ({ ...prev, cardShowWoodBase: e.target.checked }))} 
+                              className="sr-only peer" 
+                            />
+                            <div className="w-9 h-5 bg-amber-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-amber-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                          </label>
+                        </div>
+                      )}
+
+                      {config.cardTheme === 'google_black_card' && (
+                        <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl space-y-1.5">
+                          <label className="text-xs font-bold text-slate-200 block">Texto en Recuadro Inferior ("Pon tu logo")</label>
+                          <input 
+                            type="text" 
+                            value={config.cardCustomLogoText || ''} 
+                            onChange={(e) => setConfig({ ...config, cardCustomLogoText: e.target.value })} 
+                            placeholder="Ej: Pon tu logo / Café Bar Central" 
+                            className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                          />
+                        </div>
+                      )}
 
                     </div>
                   ) : (
