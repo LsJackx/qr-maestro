@@ -59,7 +59,8 @@ import { AnalyticsPage } from './components/AnalyticsPage';
 import { ScanNotificationToast } from './components/ScanNotificationToast';
 import { PWAInstallModal } from './components/PWAInstallPrompt';
 import { AdminFrameGenerator } from './components/AdminFrameGenerator';
-import { QRCodeConfig, HistoryItem, ContentType, QRFrame, User, FrameFont, ScanEvent, FrameCategory } from './types';
+import { TemplatesGallery } from './components/TemplatesGallery';
+import { QRCodeConfig, HistoryItem, ContentType, QRFrame, User, FrameFont, ScanEvent, FrameCategory, QRTemplate } from './types';
 import { downloadPNG, downloadSVG, downloadEPS, downloadQRPDF } from './utils/download';
 import { AdPlaceholder } from './components/AdPlaceholder';
 import { AuthModal } from './components/AuthModal';
@@ -121,7 +122,7 @@ export default function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true); // Default open on desktop
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<'CONTENT' | 'LANDING' | 'STYLE' | 'TEXT' | 'LOGO'>('CONTENT');
+  const [activeTab, setActiveTab] = useState<'CONTENT' | 'LANDING' | 'STYLE' | 'TEXT' | 'LOGO' | 'TEMPLATES'>('CONTENT');
   
   // Navigation State
   const [view, setView] = useState<'LANDING' | 'GENERATOR' | 'VIEWER' | 'LOADING' | 'ANALYTICS'>(() => {
@@ -454,6 +455,30 @@ export default function App() {
       setLandingWebsite('');
       setShortId(Math.random().toString(36).substring(2, 9));
       setActiveTab('CONTENT');
+    }
+  };
+
+  const handleApplyTemplate = (template: QRTemplate) => {
+    setConfig(prev => ({
+      ...prev,
+      ...template.config,
+      templateId: template.id
+    }));
+
+    if (template.config.targetContent) {
+      setUrlInput(template.config.targetContent);
+    }
+    if (template.config.title) {
+      setDynTitle(template.config.title);
+    }
+    if (template.config.dynamicDescription) {
+      setDynDesc(template.config.dynamicDescription);
+    }
+    if (template.config.wifiSsid) {
+      setWifiSsid(template.config.wifiSsid);
+    }
+    if (template.config.wifiPass) {
+      setWifiPass(template.config.wifiPass);
     }
   };
 
@@ -792,7 +817,13 @@ export default function App() {
           </div>
         </nav>
 
-        <HeroSection onStart={handleStart} />
+        <HeroSection 
+          onStart={handleStart} 
+          onOpenTemplates={() => {
+            setView('GENERATOR');
+            setActiveTab('TEMPLATES');
+          }}
+        />
         <div className="max-w-5xl mx-auto px-4 mb-16">
            <AdPlaceholder format="horizontal" className="h-32" />
         </div>
@@ -975,6 +1006,16 @@ export default function App() {
 
                 <div className="flex items-center gap-2 shrink-0">
                   <button 
+                    onClick={() => setActiveTab('TEMPLATES')}
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-sm flex items-center gap-1.5 transition-all active:scale-95"
+                    title="Explorar plantillas predefinidas (Google Reseñas, Wi-Fi, Menú, etc.)"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                    <span className="hidden sm:inline">Plantillas</span>
+                    <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded-full">20</span>
+                  </button>
+
+                  <button 
                     onClick={() => setAdminFrameModalOpen(true)}
                     className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm flex items-center gap-1.5 transition-all active:scale-95"
                     title="Creador de Marcos y Siluetas (Admin)"
@@ -997,6 +1038,14 @@ export default function App() {
 
               {/* TABS */}
               <div className="flex gap-2 overflow-x-auto pb-1">
+                 <button 
+                   onClick={() => setActiveTab('TEMPLATES')}
+                   className={`px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'TEMPLATES' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
+                 >
+                   <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" /> Plantillas
+                   <span className="text-[10px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded-full">20</span>
+                 </button>
+
                  <button 
                    onClick={() => setActiveTab('CONTENT')}
                    className={`px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'CONTENT' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
@@ -1761,6 +1810,41 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* Theme and 5-Stars options */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100 dark:border-slate-800">
+                        <div>
+                          <label className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5 block">Tema Visual de Tarjeta</label>
+                          <select
+                            value={config.cardTheme || 'standard'}
+                            onChange={(e) => setConfig({ ...config, cardTheme: e.target.value as any })}
+                            className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-lg p-2.5 text-xs font-semibold"
+                          >
+                            <option value="standard">Estándar / Negocio</option>
+                            <option value="google_review">Google Reseñas (Logo G + Estrellas)</option>
+                            <option value="tripadvisor">TripAdvisor</option>
+                            <option value="wifi">Conexión Wi-Fi</option>
+                            <option value="social">Redes Sociales</option>
+                            <option value="tips">Bote de Propinas</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
+                          <div>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">Mostrar 5 Estrellas ⭐</span>
+                            <span className="text-[10px] text-slate-500">Para Google Maps o calificaciones</span>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={!!config.cardShowStars} 
+                              onChange={(e) => setConfig(prev => ({ ...prev, cardShowStars: e.target.checked }))} 
+                              className="sr-only peer" 
+                            />
+                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                          </label>
+                        </div>
+                      </div>
+
                     </div>
                   ) : (
                     <div className="text-center py-6 px-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
@@ -1842,6 +1926,14 @@ export default function App() {
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* TAB CONTENT: TEMPLATES GALLERY */}
+              {activeTab === 'TEMPLATES' && (
+                <TemplatesGallery 
+                  onSelectTemplate={handleApplyTemplate} 
+                  currentConfig={config} 
+                />
               )}
               
               <AdPlaceholder className="h-20" label="Publicidad" />

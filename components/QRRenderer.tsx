@@ -1075,6 +1075,31 @@ const RenderFramedOrPlainQR: React.FC<{
   );
 };
 
+// Helpers for Google G and Five Star Rating
+const renderGoogleG = (x: number, y: number, scale: number = 0.75) => (
+  <g transform={`translate(${x}, ${y}) scale(${scale})`}>
+    <circle cx="12" cy="12" r="13" fill="#ffffff" />
+    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+  </g>
+);
+
+const renderFiveStars = (cx: number, cy: number, scale: number = 1) => {
+  const starPath = "M 0,-7 L 2.1,-2.3 L 7,-1.5 L 3.5,1.9 L 4.3,6.8 L 0,4.5 L -4.3,6.8 L -3.5,1.9 L -7,-1.5 L -2.1,-2.3 Z";
+  const offsets = [-34, -17, 0, 17, 34];
+  return (
+    <g transform={`translate(${cx}, ${cy}) scale(${scale})`}>
+      {offsets.map((dx, i) => (
+        <g key={i} transform={`translate(${dx}, 0)`}>
+          <path d={starPath} fill="#fbbc04" stroke="#d97706" strokeWidth="0.8" />
+        </g>
+      ))}
+    </g>
+  );
+};
+
 // FULL CARD / FLYER / INSTRUCTIONS RENDERER
 interface CardQRRendererProps {
   config: QRCodeConfig;
@@ -1106,6 +1131,7 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
   const cardInstructions = config.cardInstructions || '1. Abre tu cámara • 2. Enfoca el código • 3. Toca el enlace';
   const cardCta = config.cardCta || 'Acceso rápido y seguro';
   const position = config.cardPosition || 'bottom';
+  const hasStars = config.cardShowStars || config.cardTheme === 'google_review' || cardSubtitle.includes('⭐');
 
   // 1. FLYER / POSTER FORMAT (360 x 520)
   if (position === 'flyer') {
@@ -1129,27 +1155,40 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
         <path d="M 4 24 A 20 20 0 0 1 24 4 L 336 4 A 20 20 0 0 1 356 24 L 356 68 L 4 68 Z" fill={frameColor} />
         
         {/* Badge in Header */}
-        <rect x="100" y="54" width="160" height="28" rx="14" fill={cardBg} stroke={frameColor} strokeWidth="2.5" />
-        <text x="180" y="72" fill={frameColor} fontSize="11" fontWeight="900" letterSpacing="1" fontFamily={frameFontFamily} textAnchor="middle">
-          {frameText.toUpperCase()}
+        <rect x="80" y="54" width="200" height="28" rx="14" fill={cardBg} stroke={frameColor} strokeWidth="2.5" />
+        {config.cardTheme === 'google_review' && renderGoogleG(86, 56, 0.72)}
+        <text 
+          x={config.cardTheme === 'google_review' ? 186 : 180} 
+          y="72" 
+          fill={frameColor} 
+          fontSize="10.5" 
+          fontWeight="900" 
+          letterSpacing="1" 
+          fontFamily={frameFontFamily} 
+          textAnchor="middle"
+        >
+          {(config.cardBadgeText || frameText).toUpperCase()}
         </text>
 
         {/* Title */}
-        <text x="180" y="112" fill={cardText} fontSize="17" fontWeight="bold" fontFamily={frameFontFamily} textAnchor="middle">
+        <text x="180" y="108" fill={cardText} fontSize="17" fontWeight="bold" fontFamily={frameFontFamily} textAnchor="middle">
           {titleLines.map((line, idx) => (
             <tspan key={idx} x="180" dy={idx === 0 ? 0 : 20}>{line}</tspan>
           ))}
         </text>
 
         {/* Subtitle */}
-        <text x="180" y={112 + (titleLines.length * 20) + 4} fill={cardText} fontSize="10" opacity="0.8" fontFamily={frameFontFamily} textAnchor="middle">
+        <text x="180" y={108 + (titleLines.length * 20) + 2} fill={cardText} fontSize="10" opacity="0.8" fontFamily={frameFontFamily} textAnchor="middle">
           {subtitleLines.map((line, idx) => (
             <tspan key={idx} x="180" dy={idx === 0 ? 0 : 13}>{line}</tspan>
           ))}
         </text>
 
+        {/* 5 Stars Rating */}
+        {hasStars && renderFiveStars(180, 108 + (titleLines.length * 20) + (subtitleLines.length > 1 ? 26 : 18), 1.05)}
+
         {/* Center QR Box with Active Frame */}
-        <g transform="translate(80, 185)">
+        <g transform={`translate(80, ${hasStars ? 188 : 178})`}>
           <rect x="-8" y="-8" width="216" height="216" rx="16" fill={config.bgColor || '#ffffff'} stroke={frameColor} strokeWidth="2" />
           <RenderFramedOrPlainQR
             config={config}
@@ -1326,8 +1365,11 @@ const CardQRRenderer: React.FC<CardQRRendererProps> = ({
           ))}
         </text>
 
+        {/* 5 Stars Rating */}
+        {hasStars && renderFiveStars(140, 44 + (titleLines.length * 19) + (subtitleLines.length > 1 ? 22 : 15), 0.85)}
+
         {/* Instructions */}
-        <g transform={`translate(10, ${85 + (titleLines.length > 1 ? 8 : 0)})`}>
+        <g transform={`translate(10, ${85 + (titleLines.length > 1 ? 8 : 0) + (hasStars ? 8 : 0)})`}>
           <rect x="0" y="0" width="260" height={instructionLines.length > 1 ? 46 : 34} rx="8" fill={frameColor} fillOpacity="0.08" stroke={frameColor} strokeWidth="1" />
           <text x="130" y={instructionLines.length > 1 ? 16 : 21} fill={cardText} fontSize="8.5" fontWeight="600" fontFamily={frameFontFamily} textAnchor="middle">
             {instructionLines.map((line, idx) => (

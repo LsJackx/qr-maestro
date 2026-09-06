@@ -86,6 +86,10 @@ export interface QRCodeConfig {
   cardCta?: string;
   cardBgColor?: string;
   cardTextColor?: string;
+  cardShowStars?: boolean;
+  cardBadgeText?: string;
+  cardTheme?: 'standard' | 'google_review' | 'tripadvisor' | 'wifi' | 'instagram' | 'whatsapp' | 'payment';
+  templateId?: string;
 
   contentType: ContentType;
   
@@ -172,3 +176,32 @@ export enum GenerationStatus {
 }
 
 export type QRFormat = 'SVG' | 'PNG' | 'PDF' | 'EPS';
+
+export type TemplateCategory = 
+  | 'all'
+  | 'reviews' 
+  | 'hospitality' 
+  | 'wifi' 
+  | 'social' 
+  | 'payments' 
+  | 'events' 
+  | 'retail' 
+  | 'professional';
+
+export interface QRTemplate {
+  id: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  category: TemplateCategory;
+  categoryLabel: string;
+  badge: string;
+  icon: string;
+  previewColor: string;
+  previewBg: string;
+  config: Partial<QRCodeConfig>;
+  tips?: string;
+  helperType?: 'google_review' | 'wifi' | 'whatsapp' | 'instagram' | 'vcard' | 'custom_url';
+  sampleUrl?: string;
+  popular?: boolean;
+}

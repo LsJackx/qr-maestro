@@ -1,11 +1,12 @@
 import React from 'react';
-import { Sparkles, QrCode, Zap, ShieldCheck } from 'lucide-react';
+import { Sparkles, QrCode, Zap, ShieldCheck, Star } from 'lucide-react';
 
 interface HeroSectionProps {
   onStart: () => void;
+  onOpenTemplates?: () => void;
 }
 
-export const HeroSection: React.FC<HeroSectionProps> = ({ onStart }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({ onStart, onOpenTemplates }) => {
   return (
     <div className="relative overflow-hidden bg-white dark:bg-slate-950 pt-16 pb-12 lg:pt-24 lg:pb-16">
       {/* Background Gradients */}
@@ -15,8 +16,19 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onStart }) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 text-center relative z-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 text-xs font-bold uppercase tracking-wider mb-6 border border-indigo-100 dark:border-indigo-800">
-          <Sparkles className="w-3 h-3" /> Potenciado con Inteligencia Artificial
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 text-xs font-bold uppercase tracking-wider border border-indigo-100 dark:border-indigo-800">
+            <Sparkles className="w-3 h-3" /> Potenciado con Inteligencia Artificial
+          </div>
+          {onOpenTemplates && (
+            <button
+              onClick={onOpenTemplates}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 text-xs font-bold border border-amber-200 dark:border-amber-800/80 shadow-xs transition-all active:scale-95"
+            >
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+              <span>20 Plantillas Predefinidas: Google Reseñas, Wi-Fi, Menú...</span>
+            </button>
+          )}
         </div>
         
         <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-6">
@@ -24,7 +36,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onStart }) => {
         </h1>
         
         <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8 leading-relaxed">
-          Crea códigos QR únicos, artísticos y funcionales en segundos. Personaliza colores, formas y logos con la ayuda de nuestra IA.
+          Crea códigos QR únicos, artísticos y funcionales en segundos. Personaliza colores, marcos, tarjetas para imprimir y carteles de Google Reseñas.
           <br className="hidden md:block" />
           <span className="font-semibold text-slate-900 dark:text-slate-200">Gratis para siempre.</span>
         </p>
@@ -37,12 +49,22 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onStart }) => {
             <QrCode className="w-5 h-5" />
             Crear mi QR Ahora
           </button>
-          <button 
-            onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-            className="px-8 py-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-2xl font-bold text-lg transition-all"
-          >
-            Ver Características
-          </button>
+          {onOpenTemplates ? (
+            <button 
+              onClick={onOpenTemplates}
+              className="px-8 py-4 bg-amber-50 dark:bg-slate-900 text-amber-900 dark:text-amber-200 border-2 border-amber-300 dark:border-amber-700/70 hover:bg-amber-100 dark:hover:bg-slate-800 rounded-2xl font-bold text-lg transition-all flex items-center gap-2 shadow-sm"
+            >
+              <Star className="w-5 h-5 fill-amber-400 text-amber-500" />
+              Ver Plantillas Listas
+            </button>
+          ) : (
+            <button 
+              onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+              className="px-8 py-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-2xl font-bold text-lg transition-all"
+            >
+              Ver Características
+            </button>
+          )}
         </div>
 
         {/* Trust Badges */}
